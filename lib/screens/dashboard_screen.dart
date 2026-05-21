@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'projects_m_screen.dart';
 import 'profile_m_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/sidebar.dart';
@@ -36,9 +37,49 @@ class _DashboardScreenState
         currentIndex: activeTab,
 
         onTap: (index) {
+
           setState(() {
             activeTab = index;
           });
+
+          /// DASHBOARD
+          if (index == 0) {
+
+            Navigator.push(
+              context,
+
+              MaterialPageRoute(
+                builder: (_) =>
+                const DashboardScreen(),
+              ),
+            );
+          }
+
+          /// BROWSE PROJECTS
+          else if (index == 1) {
+
+            Navigator.push(
+              context,
+
+              MaterialPageRoute(
+                builder: (_) =>
+                const ProjectsMScreen(),
+              ),
+            );
+          }
+
+          /// PROFILE
+          else if (index == 3) {
+
+            Navigator.push(
+              context,
+
+              MaterialPageRoute(
+                builder: (_) =>
+                const ProfileMScreen(),
+              ),
+            );
+          }
         },
       )
           : null,
@@ -338,49 +379,36 @@ class _DashboardScreenState
                               ],
                             ),
 
-                            ElevatedButton
-                                .icon(
-                              onPressed:
-                                  () {},
+                            ElevatedButton.icon(
+                              onPressed: () {
+
+                                Navigator.push(
+                                  context,
+
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                    const ProjectsMScreen(),
+                                  ),
+                                );
+                              },
 
                               style:
-                              ElevatedButton
-                                  .styleFrom(
+                              ElevatedButton.styleFrom(
                                 backgroundColor:
-                                Colors
-                                    .white,
+                                Colors.white,
 
                                 foregroundColor:
-                                AppColors
-                                    .slate900,
-
-                                padding:
-                                const EdgeInsets
-                                    .symmetric(
-                                  horizontal:
-                                  24,
-                                  vertical:
-                                  18,
-                                ),
-
-                                shape:
-                                RoundedRectangleBorder(
-                                  borderRadius:
-                                  BorderRadius.circular(
-                                      14),
-                                ),
+                                AppColors.slate900,
                               ),
 
-                              icon:
-                              const Icon(
+                              icon: const Icon(
                                 Icons.search,
                               ),
 
-                              label:
-                              const Text(
+                              label: const Text(
                                 "Find Work",
                               ),
-                            ),
+                            )
                           ],
                         ),
                       ),
