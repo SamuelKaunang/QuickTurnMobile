@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'chat_screen.dart';
 import 'active_projects_screen.dart';
 import 'projects_m_screen.dart';
 import 'profile_m_screen.dart';
@@ -46,7 +47,7 @@ class _DashboardScreenState
           /// DASHBOARD
           if (index == 0) {
 
-            Navigator.pushReplacement(
+            Navigator.push(
               context,
 
               MaterialPageRoute(
@@ -59,7 +60,7 @@ class _DashboardScreenState
           /// BROWSE PROJECTS
           else if (index == 1) {
 
-            Navigator.pushReplacement(
+            Navigator.push(
               context,
 
               MaterialPageRoute(
@@ -72,7 +73,7 @@ class _DashboardScreenState
           /// ACTIVE PROJECTS
           else if (index == 2) {
 
-            Navigator.pushReplacement(
+            Navigator.push(
               context,
 
               MaterialPageRoute(
@@ -85,12 +86,12 @@ class _DashboardScreenState
           /// PROFILE
           else if (index == 3) {
 
-            Navigator.pushReplacement(
+            Navigator.push(
               context,
 
               MaterialPageRoute(
                 builder: (_) =>
-                const ProfileMScreen(),
+                const ChatScreen(),
               ),
             );
           }
