@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'active_projects_screen.dart';
 import 'projects_m_screen.dart';
 import 'profile_m_screen.dart';
 import '../theme/app_colors.dart';
@@ -45,7 +46,7 @@ class _DashboardScreenState
           /// DASHBOARD
           if (index == 0) {
 
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
 
               MaterialPageRoute(
@@ -58,7 +59,7 @@ class _DashboardScreenState
           /// BROWSE PROJECTS
           else if (index == 1) {
 
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
 
               MaterialPageRoute(
@@ -68,10 +69,23 @@ class _DashboardScreenState
             );
           }
 
+          /// ACTIVE PROJECTS
+          else if (index == 2) {
+
+            Navigator.pushReplacement(
+              context,
+
+              MaterialPageRoute(
+                builder: (_) =>
+                const ActiveProjectsScreen(),
+              ),
+            );
+          }
+
           /// PROFILE
           else if (index == 3) {
 
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
 
               MaterialPageRoute(
