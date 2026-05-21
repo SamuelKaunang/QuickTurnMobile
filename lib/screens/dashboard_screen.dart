@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'profile_m_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/stat_card.dart';
@@ -118,25 +119,35 @@ class _DashboardScreenState
 
                           const SizedBox(width: 12),
 
-                          CircleAvatar(
-                            radius:
-                            isMobile
-                                ? 20
-                                : 24,
+                          GestureDetector(
+                            onTap: () {
 
-                            backgroundColor:
-                            AppColors.brand,
+                              Navigator.push(
+                                context,
 
-                            child: Icon(
-                              Icons.person,
-                              color:
-                              Colors.white,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                  const ProfileMScreen(),
+                                ),
+                              );
+                            },
 
-                              size: isMobile
-                                  ? 20
-                                  : 24,
+                            child: CircleAvatar(
+                              radius:
+                              isMobile ? 20 : 24,
+
+                              backgroundColor:
+                              AppColors.brand,
+
+                              child: Icon(
+                                Icons.person,
+                                color: Colors.white,
+
+                                size:
+                                isMobile ? 20 : 24,
+                              ),
                             ),
-                          ),
+                          )
                         ],
                       ),
 
