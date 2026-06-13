@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import '../dashboard/talent_dashboard_screen.dart';
 import '../dashboard/umkm_dashboard_screen.dart';
-import 'services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -420,21 +419,12 @@ class _LoginScreenState extends State<LoginScreen> {
           width: double.infinity,
           height: 54,
           child: ElevatedButton(
-            onPressed: isLoading ? null : _sendOtp,
-            child: isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : Text(
-                    "Kirim Kode Verifikasi",
-                    style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.w700),
-                  ),
+            onPressed: () => setState(() => forgotStep = 1),
+            child: Text(
+              "Kirim Kode Verifikasi",
+              style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700),
+            ),
           ),
         ),
       ],
@@ -525,21 +515,12 @@ class _LoginScreenState extends State<LoginScreen> {
           width: double.infinity,
           height: 54,
           child: ElevatedButton(
-            onPressed: isLoading ? null : _verifyOtp,
-            child: isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : Text(
-                    "Verifikasi",
-                    style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.w700),
-                  ),
+            onPressed: () => setState(() => forgotStep = 2),
+            child: Text(
+              "Verifikasi",
+              style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700),
+            ),
           ),
         ),
 
@@ -619,21 +600,22 @@ class _LoginScreenState extends State<LoginScreen> {
           width: double.infinity,
           height: 54,
           child: ElevatedButton(
-            onPressed: isLoading ? null : _resetPassword,
-            child: isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : Text(
-                    "Reset Password",
-                    style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.w700),
-                  ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Password berhasil diubah! Silakan login."),
+                ),
+              );
+              setState(() {
+                showForgotPassword = false;
+                forgotStep = 0;
+              });
+            },
+            child: Text(
+              "Reset Password",
+              style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700),
+            ),
           ),
         ),
       ],
@@ -651,100 +633,20 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _sendOtp() async {
-    final email = forgotEmailController.text.trim();
-    if (email.isEmpty || !email.contains("@")) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Masukkan email yang valid")),
-      );
-      return;
-    }
-    setState(() => isLoading = true);
-    final res = await AuthService().forgotPassword(email);
-    setState(() => isLoading = false);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'OTP dikirim')),
-    );
-    if (res['success'] == true) {
-      setState(() => forgotStep = 1);
-    }
-  }
-
-  void _verifyOtp() async {
-    final email = forgotEmailController.text.trim();
-    final code = otpControllers.map((c) => c.text.trim()).join();
-    if (code.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Masukkan 6 digit kode OTP")),
-      );
-      return;
-    }
-    setState(() => isLoading = true);
-    final res = await AuthService().verifyResetCode(email: email, code: code);
-    setState(() => isLoading = false);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'OTP terverifikasi')),
-    );
-    if (res['success'] == true) {
-      setState(() => forgotStep = 2);
-    }
-  }
-
-  void _resetPassword() async {
-    final email = forgotEmailController.text.trim();
-    final code = otpControllers.map((c) => c.text.trim()).join();
-    final newPass = newPasswordController.text;
-    final confirmPass = confirmNewPasswordController.text;
-    
-    if (newPass.isEmpty || newPass.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password minimal 6 karakter")),
-      );
-      return;
-    }
-    if (newPass != confirmPass) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password konfirmasi tidak cocok")),
-      );
-      return;
-    }
-    
-    setState(() => isLoading = true);
-    final res = await AuthService().resetPassword(
-      email: email,
-      code: code,
-      newPassword: newPass,
-    );
-    setState(() => isLoading = false);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'Password berhasil diubah')),
-    );
-    if (res['success'] == true) {
-      setState(() {
-        showForgotPassword = false;
-        forgotStep = 0;
-      });
-    }
-  }
-
-  void _login() async {
+  void _login() {
     if (!formKey.currentState!.validate()) return;
 
     setState(() => isLoading = true);
 
-    final email = emailController.text.trim();
-    final password = passwordController.text;
+    // Simulate login - determine role based on email pattern for demo
+    Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      setState(() => isLoading = false);
 
-    final res = await AuthService().login(email: email, password: password);
+      final email = emailController.text.toLowerCase();
 
-    setState(() => isLoading = false);
-
-    if (res['success'] == true) {
-      final role = res['role'];
-      if (role == 'UMKM' || role == 'CLIENT') {
+      // Demo: if email contains "umkm" or "client", go to UMKM dashboard
+      if (email.contains("umkm") || email.contains("client")) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -759,10 +661,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(res['message'] ?? 'Login gagal')),
-      );
-    }
+    });
   }
 }

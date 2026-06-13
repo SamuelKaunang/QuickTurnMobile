@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import 'login_screen.dart';
-import 'services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String role;
@@ -484,38 +483,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  void _register() async {
+  void _register() {
     if (!formKey.currentState!.validate()) return;
 
     setState(() => isLoading = true);
 
-    final name = nameController.text.trim();
-    final email = emailController.text.trim();
-    final password = passwordController.text;
-    
-    // Map UI role to Backend role
-    final backendRole = widget.role == "TALENT" ? "MAHASISWA" : "UMKM";
+    // Simulate API call
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() => isLoading = false);
 
-    final res = await AuthService().register(
-      name: name,
-      email: email,
-      password: password,
-      role: backendRole,
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Akun berhasil dibuat! Silakan login."),
+        ),
+      );
 
-    setState(() => isLoading = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'Proses registrasi selesai')),
-    );
-
-    if (res['success'] == true) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => const LoginScreen(),
         ),
       );
-    }
+    });
   }
 }
