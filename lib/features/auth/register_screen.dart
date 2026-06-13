@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import 'login_screen.dart';
-import 'services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String role;
@@ -113,59 +112,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // Dark header
-                    Padding(
-                      padding: const EdgeInsets.all(28),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(14),
-                                color: Colors.white.withOpacity(0.08),
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child:Padding(
+                          padding: const EdgeInsets.all(28),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              IconButton(
+                                onPressed: () => Navigator.pop(context),
+                                icon: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    color: Colors.white.withOpacity(0.08),
+                                  ),
+                                  child: const Icon(
+                                    Icons.arrow_back,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.white,
-                                size: 20,
+                              const SizedBox(height: 24),
+                              Text(
+                                "Buat Akun\n${isTalent ? 'Mahasiswa' : 'UMKM'}",
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  height: 1.2,
+                                ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            "Buat Akun\n${isTalent ? 'Mahasiswa' : 'UMKM'}",
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(999),
-                              color: QTColors.brandPrimary.withOpacity(0.2),
-                            ),
-                            child: Text(
-                              isTalent ? "🎓 Talent" : "🏪 Client",
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: QTColors.brandPrimary,
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(999),
+                                  color: QTColors.brandPrimary.withOpacity(0.2),
+                                ),
+                                child: Text(
+                                  isTalent ? "🎓 Talent" : "🏪 Client",
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: QTColors.brandPrimary,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
                     ),
 
                     // White form area
@@ -484,38 +485,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  void _register() async {
+  void _register() {
     if (!formKey.currentState!.validate()) return;
 
     setState(() => isLoading = true);
 
-    final name = nameController.text.trim();
-    final email = emailController.text.trim();
-    final password = passwordController.text;
-    
-    // Map UI role to Backend role
-    final backendRole = widget.role == "TALENT" ? "MAHASISWA" : "UMKM";
+    // Simulate API call
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      setState(() => isLoading = false);
 
-    final res = await AuthService().register(
-      name: name,
-      email: email,
-      password: password,
-      role: backendRole,
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Akun berhasil dibuat! Silakan login."),
+        ),
+      );
 
-    setState(() => isLoading = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'Proses registrasi selesai')),
-    );
-
-    if (res['success'] == true) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => const LoginScreen(),
         ),
       );
-    }
+    });
   }
 }
