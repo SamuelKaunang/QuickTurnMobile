@@ -20,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool obscurePassword = true;
   bool isLoading = false;
   bool showForgotPassword = false;
+  String? resetToken;
 
   // Forgot password flow state
   int forgotStep = 0; // 0=email, 1=OTP, 2=reset password
@@ -688,13 +689,14 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(content: Text(res['message'] ?? 'OTP terverifikasi')),
     );
     if (res['success'] == true) {
-      setState(() => forgotStep = 2);
+      setState(() {
+        resetToken = res['resetToken'];
+        forgotStep = 2;
+      });
     }
   }
 
   void _resetPassword() async {
-    final email = forgotEmailController.text.trim();
-    final code = otpControllers.map((c) => c.text.trim()).join();
     final newPass = newPasswordController.text;
     final confirmPass = confirmNewPasswordController.text;
     
@@ -710,11 +712,16 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       return;
     }
+    if (resetToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Token reset tidak ditemukan. Silakan verifikasi OTP kembali.")),
+      );
+      return;
+    }
     
     setState(() => isLoading = true);
     final res = await AuthService().resetPassword(
-      email: email,
-      code: code,
+      resetToken: resetToken!,
       newPassword: newPass,
     );
     setState(() => isLoading = false);
@@ -726,6 +733,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         showForgotPassword = false;
         forgotStep = 0;
+        resetToken = null;
       });
     }
   }

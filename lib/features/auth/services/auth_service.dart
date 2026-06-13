@@ -66,7 +66,7 @@ class AuthService {
       final response = await _client.dio.post(
         '/api/auth/register',
         data: {
-          'name': name,
+          'nama': name,
           'email': email,
           'password': password,
           'role': role,
@@ -128,7 +128,6 @@ class AuthService {
       final response = await _client.dio.post(
         '/api/auth/verify-reset-code',
         data: {
-          'email': email,
           'code': code,
         },
       );
@@ -136,6 +135,7 @@ class AuthService {
       return {
         'success': responseData['success'] == true,
         'message': responseData['message'] ?? 'Verifikasi OTP berhasil',
+        'resetToken': responseData['data']?['resetToken'],
       };
     } on DioException catch (e) {
       return {
@@ -147,16 +147,14 @@ class AuthService {
 
   /// Reset to new password
   Future<Map<String, dynamic>> resetPassword({
-    required String email,
-    required String code,
+    required String resetToken,
     required String newPassword,
   }) async {
     try {
       final response = await _client.dio.post(
         '/api/auth/reset-password',
         data: {
-          'email': email,
-          'code': code,
+          'resetToken': resetToken,
           'newPassword': newPassword,
         },
       );

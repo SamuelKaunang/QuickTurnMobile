@@ -22,10 +22,9 @@ class ChatService {
   /// Retrieve conversation history with a specific user
   Future<List<dynamic>> getChatHistory(int contactId) async {
     try {
-      // Trying with query parameter contactId or recipientId
       final response = await _client.dio.get(
         '/api/chat/history',
-        queryParameters: {'contactId': contactId, 'recipientId': contactId},
+        queryParameters: {'otherUserId': contactId},
       );
       final responseData = response.data;
       if (responseData['success'] == true && responseData['data'] != null) {
@@ -43,7 +42,7 @@ class ChatService {
     try {
       final response = await _client.dio.post(
         '/api/chat/start',
-        data: {'userId': userId},
+        queryParameters: {'otherUserId': userId},
       );
       final responseData = response.data;
       return {
@@ -64,7 +63,7 @@ class ChatService {
     try {
       final response = await _client.dio.post(
         '/api/chat/mark-read',
-        data: {'senderId': senderId},
+        queryParameters: {'senderId': senderId},
       );
       return response.data['success'] == true;
     } catch (e) {
@@ -74,11 +73,12 @@ class ChatService {
   }
 
   /// Upload an attachment in chat
-  Future<Map<String, dynamic>> uploadAttachment(String filePath) async {
+  Future<Map<String, dynamic>> uploadAttachment(String filePath, int recipientId) async {
     try {
       final fileName = filePath.split('/').last;
       final formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(filePath, filename: fileName),
+        'recipientId': recipientId,
       });
 
       final response = await _client.dio.post(

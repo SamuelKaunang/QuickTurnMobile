@@ -81,11 +81,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           if (isTalent) {
-            nameCtrl.text = data['name'] ?? '';
+            nameCtrl.text = data['nama'] ?? '';
             headlineCtrl.text = data['headline'] ?? '';
             bioCtrl.text = data['bio'] ?? '';
             uniCtrl.text = data['university'] ?? '';
-            expCtrl.text = data['experience'] ?? '';
+            expCtrl.text = data['yearsExperience'] != null ? data['yearsExperience'].toString() : '';
             availability = data['availability'] ?? 'Full-time';
             
             final skills = data['skills'];
@@ -101,13 +101,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             linkedinCtrl.text = data['linkedinUrl'] ?? '';
             githubCtrl.text = data['githubUrl'] ?? '';
           } else {
-            bizNameCtrl.text = data['name'] ?? '';
-            taglineCtrl.text = data['tagline'] ?? '';
-            aboutCtrl.text = data['about'] ?? '';
-            companyCtrl.text = data['companyName'] ?? '';
+            bizNameCtrl.text = data['nama'] ?? '';
+            taglineCtrl.text = data['headline'] ?? '';
+            aboutCtrl.text = data['bio'] ?? '';
+            companyCtrl.text = data['university'] ?? '';
             addressCtrl.text = data['address'] ?? '';
             phoneCtrl.text = data['phone'] ?? '';
-            websiteCtrl.text = data['websiteUrl'] ?? '';
+            websiteCtrl.text = data['businessWebsite'] ?? '';
             igCtrl.text = data['instagramUrl'] ?? '';
             ytCtrl.text = data['youtubeUrl'] ?? '';
             fbCtrl.text = data['facebookUrl'] ?? '';
@@ -128,14 +128,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     Map<String, dynamic> body = {};
     if (isTalent) {
+      final expVal = int.tryParse(expCtrl.text.trim()) ?? 0;
       body = {
-        'name': nameCtrl.text.trim(),
+        'nama': nameCtrl.text.trim(),
         'headline': headlineCtrl.text.trim(),
         'bio': bioCtrl.text.trim(),
         'university': uniCtrl.text.trim(),
-        'experience': expCtrl.text.trim(),
+        'yearsExperience': expVal,
         'availability': availability,
-        'skills': skillCtrl.text.split(',').map((s) => s.trim()).toList(),
+        'skills': skillCtrl.text.trim(),
         'location': locCtrl.text.trim(),
         'phone': phoneCtrl.text.trim(),
         'portfolioUrl': portfolioCtrl.text.trim(),
@@ -144,13 +145,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       };
     } else {
       body = {
-        'name': bizNameCtrl.text.trim(),
-        'tagline': taglineCtrl.text.trim(),
-        'about': aboutCtrl.text.trim(),
-        'companyName': companyCtrl.text.trim(),
+        'nama': bizNameCtrl.text.trim(),
+        'headline': taglineCtrl.text.trim(),
+        'bio': aboutCtrl.text.trim(),
+        'university': companyCtrl.text.trim(),
         'address': addressCtrl.text.trim(),
         'phone': phoneCtrl.text.trim(),
-        'websiteUrl': websiteCtrl.text.trim(),
+        'businessWebsite': websiteCtrl.text.trim(),
         'instagramUrl': igCtrl.text.trim(),
         'youtubeUrl': ytCtrl.text.trim(),
         'facebookUrl': fbCtrl.text.trim(),
