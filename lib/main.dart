@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/dashboard_screen.dart';
-
+import 'core/theme/qt_theme.dart';
+import 'features/auth/landing_screen.dart';
 
 void main() {
   runApp(const QuickTurnApp());
@@ -14,11 +14,8 @@ class QuickTurnApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'QuickTurn',
-      theme: ThemeData(
-        fontFamily: 'PlusJakartaSans',
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-      ),
-      home: const DashboardScreen(),
+      theme: QTTheme.lightTheme,
+      home: const LandingScreen(),
     );
   }
 }
