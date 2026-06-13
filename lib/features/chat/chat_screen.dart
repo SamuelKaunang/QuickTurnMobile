@@ -171,7 +171,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (selectedFile != null) {
       setState(() => isLoadingFile = true);
-      final uploadRes = await ChatService().uploadAttachment(selectedFile!.path);
+      final uploadRes = await ChatService().uploadAttachment(selectedFile!.path, recipientId as int);
       setState(() => isLoadingFile = false);
       
       if (uploadRes['success'] == true) {
