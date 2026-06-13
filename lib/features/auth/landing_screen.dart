@@ -304,10 +304,10 @@ class _LandingScreenState extends State<LandingScreen>
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 14,
       mainAxisSpacing: 14,
-      childAspectRatio: 1.1,
+      childAspectRatio: 0.95,
       children: features.map((f) {
         return Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             color: Colors.white.withOpacity(0.06),
@@ -319,10 +319,10 @@ class _LandingScreenState extends State<LandingScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   gradient: LinearGradient(
                     colors: [
                       QTColors.brandPrimary.withOpacity(0.2),
@@ -333,14 +333,14 @@ class _LandingScreenState extends State<LandingScreen>
                 child: Icon(
                   f["icon"] as IconData,
                   color: QTColors.brandPrimary,
-                  size: 22,
+                  size: 20,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               Text(
                 f["title"] as String,
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
                 ),
@@ -352,7 +352,7 @@ class _LandingScreenState extends State<LandingScreen>
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11,
                     color: QTColors.textMuted,
-                    height: 1.4,
+                    height: 1.3,
                   ),
                 ),
               ),
