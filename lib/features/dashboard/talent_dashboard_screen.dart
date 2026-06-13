@@ -6,6 +6,8 @@ import '../projects/browse_projects_screen.dart';
 import '../projects/active_projects_screen.dart';
 import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
+import '../auth/services/auth_service.dart';
+import '../projects/services/project_service.dart';
 
 class TalentDashboardScreen extends StatefulWidget {
   const TalentDashboardScreen({super.key});
@@ -92,13 +94,99 @@ class _TalentDashboardScreenState extends State<TalentDashboardScreen> {
   }
 }
 
-class _DashboardHome extends StatelessWidget {
+class _DashboardHome extends StatefulWidget {
   final Function(int) onNavigate;
 
   const _DashboardHome({required this.onNavigate});
 
   @override
+  State<_DashboardHome> createState() => _DashboardHomeState();
+}
+
+class _DashboardHomeState extends State<_DashboardHome> {
+  bool _isLoading = true;
+  String _userName = "Talent";
+  int _availableCount = 0;
+  int _completedCount = 0;
+  int _appliedCount = 0;
+  List<Map<String, dynamic>> _recommendedProjects = [];
+  List<Map<String, dynamic>> _announcements = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+
+    try {
+      // 1. Fetch user profile
+      final profileRes = await AuthService().getProfile();
+      if (profileRes['success'] == true && profileRes['data'] != null) {
+        _userName = profileRes['data']['nama'] ?? 'Talent';
+      }
+
+      // 2. Fetch projects
+      final openProjects = await ProjectService().getAllProjects();
+      final participating = await ProjectService().getParticipatingProjects();
+      final recommendations = await ProjectService().getRecommendedProjects();
+      final announcementsList = await ProjectService().getAnnouncements();
+
+      final compCount = participating
+          .where((p) => p['status'] == 'CLOSED' || p['status'] == 'DONE')
+          .length;
+
+      if (mounted) {
+        setState(() {
+          _availableCount = openProjects.length;
+          _completedCount = compCount;
+          _appliedCount = participating.length;
+          _recommendedProjects = recommendations;
+          _announcements = announcementsList;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  String _formatBudget(dynamic budget) {
+    if (budget == null) return "0";
+    final numVal = double.tryParse(budget.toString()) ?? 0.0;
+    if (numVal >= 1000000) {
+      return "${(numVal / 1000000).toStringAsFixed(1)}M";
+    } else if (numVal >= 1000) {
+      return "${(numVal / 1000).toStringAsFixed(0)}K";
+    }
+    return numVal.toStringAsFixed(0);
+  }
+
+  String _formatComplexity(dynamic comp) {
+    if (comp == null) return "Beginner";
+    final compStr = comp.toString().toUpperCase();
+    if (compStr.contains("BEGINNER")) return "Beginner";
+    if (compStr.contains("INTERMEDIATE")) return "Intermediate";
+    if (compStr.contains("EXPERT")) return "Expert";
+    return comp.toString();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: QTColors.bgPrimary,
+        body: Center(
+          child: CircularProgressIndicator(color: QTColors.brandPrimary),
+        ),
+      );
+    }
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -112,316 +200,330 @@ class _DashboardHome extends StatelessWidget {
         ),
       ),
       child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top bar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Halo, Talent! 👋",
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: QTColors.textPrimary,
+        child: RefreshIndicator(
+          onRefresh: _loadDashboardData,
+          color: QTColors.brandPrimary,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top bar
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Halo, $_userName! 👋",
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: QTColors.textPrimary,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Temukan proyek yang cocok untukmu",
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14,
-                            color: QTColors.textSecondary,
+                          const SizedBox(height: 4),
+                          Text(
+                            "Temukan proyek yang cocok untukmu",
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              color: QTColors.textSecondary,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ProfileScreen(role: "TALENT"),
-                        ),
-                      );
-                    },
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: const LinearGradient(
-                              colors: [QTColors.brandPrimary, QTColors.brandDark],
-                            ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileScreen(role: "TALENT"),
                           ),
-                          child: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                        // Notification badge
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: Container(
-                            width: 16,
-                            height: 16,
+                        );
+                      },
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
                             decoration: BoxDecoration(
-                              color: QTColors.accentBeginner,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: const LinearGradient(
+                                colors: [QTColors.brandPrimary, QTColors.brandDark],
+                              ),
                             ),
-                            child: Center(
-                              child: Text(
-                                "3",
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
+                            child: const Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          // Notification badge
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: QTColors.accentBeginner,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  "3",
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 28),
+
+                // Welcome Banner
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        QTColors.brandPrimary,
+                        QTColors.brandDark,
                       ],
                     ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              // Welcome Banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      QTColors.brandPrimary,
-                      QTColors.brandDark,
+                    boxShadow: [
+                      BoxShadow(
+                        color: QTColors.brandPrimary.withOpacity(0.3),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
                     ],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: QTColors.brandPrimary.withOpacity(0.3),
-                      blurRadius: 24,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Welcome Back!",
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Build your portfolio with real projects",
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        color: Colors.white70,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => onNavigate(1),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: QTColors.brandPrimary,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Welcome Back!",
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
                         ),
-                        icon: const Icon(Icons.search, size: 20),
-                        label: Text(
-                          "Find Work",
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w700,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Build your portfolio with real projects",
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          color: Colors.white70,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => widget.onNavigate(1),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: QTColors.brandPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Icons.search, size: 20),
+                          label: Text(
+                            "Find Work",
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 28),
+                const SizedBox(height: 28),
 
-              // Category chips
-              Text(
-                "Kategori Proyek",
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                // Category chips
+                Text(
+                  "Kategori Proyek",
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 42,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 42,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      _categoryChip("All", true),
+                      _categoryChip("IT/Web", false),
+                      _categoryChip("Desain", false),
+                      _categoryChip("Marketing", false),
+                      _categoryChip("Video", false),
+                      _categoryChip("Writing", false),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // Stats Grid
+                Row(
                   children: [
-                    _categoryChip("All", true),
-                    _categoryChip("IT/Web", false),
-                    _categoryChip("Desain", false),
-                    _categoryChip("Marketing", false),
-                    _categoryChip("Video", false),
-                    _categoryChip("Writing", false),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // Stats Grid
-              Row(
-                children: [
-                  Expanded(
-                    child: _statCard(
-                      "Available Projects",
-                      "24",
-                      Icons.work_outline,
-                      QTColors.brandPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _statCard(
-                      "Completed",
-                      "12",
-                      Icons.check_circle_outline,
-                      QTColors.accentBeginner,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _statCard(
-                      "Applied",
-                      "48",
-                      Icons.send_outlined,
-                      QTColors.info,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 32),
-
-              // Recommended projects
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Rekomendasi Proyek",
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => onNavigate(1),
-                    child: Text(
-                      "Lihat Semua",
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: QTColors.brandPrimary,
+                    Expanded(
+                      child: _statCard(
+                        "Available Projects",
+                        "$_availableCount",
+                        Icons.work_outline,
+                        QTColors.brandPrimary,
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _statCard(
+                        "Completed",
+                        "$_completedCount",
+                        Icons.check_circle_outline,
+                        QTColors.accentBeginner,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _statCard(
+                        "Applied",
+                        "$_appliedCount",
+                        Icons.send_outlined,
+                        QTColors.info,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 32),
+
+                // Recommended projects
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Rekomendasi Proyek",
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => widget.onNavigate(1),
+                      child: Text(
+                        "Lihat Semua",
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: QTColors.brandPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 200,
+                  child: _recommendedProjects.isEmpty
+                      ? Center(
+                          child: Text(
+                            "Belum ada rekomendasi proyek",
+                            style: GoogleFonts.plusJakartaSans(
+                              color: QTColors.textMuted,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _recommendedProjects.length,
+                          itemBuilder: (context, index) {
+                            final p = _recommendedProjects[index];
+                            return _recommendedCard(
+                              p['title'] ?? 'No Title',
+                              p['category'] ?? 'Category',
+                              "Rp ${_formatBudget(p['budget'])}",
+                              p['estimatedDuration'] ?? 'N/A',
+                              _formatComplexity(p['complexity']),
+                            );
+                          },
+                        ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Latest Announcements
+                Text(
+                  "Latest Announcements",
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 200,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _recommendedCard(
-                      "Build AI Dashboard",
-                      "IT / Web",
-                      "Rp 3.500.000",
-                      "5 Days",
-                      "Intermediate",
-                    ),
-                    _recommendedCard(
-                      "Modern Brand Design",
-                      "Desain",
-                      "Rp 1.500.000",
-                      "3 Days",
-                      "Beginner",
-                    ),
-                    _recommendedCard(
-                      "Social Media Strategy",
-                      "Marketing",
-                      "Rp 2.000.000",
-                      "1 Week",
-                      "Intermediate",
-                    ),
-                  ],
                 ),
-              ),
+                const SizedBox(height: 16),
 
-              const SizedBox(height: 32),
+                _announcements.isEmpty
+                    ? QTGlassCard(
+                        padding: const EdgeInsets.all(20),
+                        child: Center(
+                          child: Text(
+                            "Belum ada pengumuman terbaru",
+                            style: GoogleFonts.plusJakartaSans(
+                              color: QTColors.textMuted,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      )
+                    : QTGlassCard(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _announcements.length,
+                          separatorBuilder: (_, __) => Divider(color: QTColors.slate200, height: 24),
+                          itemBuilder: (context, index) {
+                            final ann = _announcements[index];
+                            return _announcementItem(
+                              ann['title'] ?? 'Announcement',
+                              ann['content'] ?? '',
+                              Icons.notifications_active_outlined,
+                              QTColors.brandPrimary,
+                            );
+                          },
+                        ),
+                      ),
 
-              // Latest Announcements
-              Text(
-                "Latest Announcements",
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              QTGlassCard(
-                child: Column(
-                  children: [
-                    _announcementItem(
-                      "New AI Project Available",
-                      "Apply before Friday",
-                      Icons.bolt_rounded,
-                      QTColors.warning,
-                    ),
-                    Divider(color: QTColors.slate200, height: 24),
-                    _announcementItem(
-                      "Backend Challenge",
-                      "Laravel + Flutter integration",
-                      Icons.code_rounded,
-                      QTColors.info,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),

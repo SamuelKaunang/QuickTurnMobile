@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
+import 'services/project_service.dart';
 
 class PostProjectScreen extends StatefulWidget {
   const PostProjectScreen({super.key});
@@ -10,6 +11,7 @@ class PostProjectScreen extends StatefulWidget {
 
 class _PostProjectScreenState extends State<PostProjectScreen> {
   int currentStep = 0;
+  bool _isPosting = false;
   final titleCtrl = TextEditingController();
   final budgetCtrl = TextEditingController();
   final descCtrl = TextEditingController();
@@ -48,17 +50,68 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
         Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: Colors.white,
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))]),
           child: Row(children: [
-            if (currentStep > 0) Expanded(child: OutlinedButton(onPressed: () => setState(() => currentStep--), child: const Text("Back"))),
+            if (currentStep > 0) Expanded(child: OutlinedButton(onPressed: _isPosting ? null : () => setState(() => currentStep--), child: const Text("Back"))),
             if (currentStep > 0) const SizedBox(width: 12),
             Expanded(child: ElevatedButton(
-              onPressed: () {
-                if (currentStep < 2) { setState(() => currentStep++); }
-                else { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Project posted!"))); }
-              },
-              child: Text(currentStep == 2 ? "Post Project" : "Next"))),
+              onPressed: _isPosting ? null : _handleNext,
+              child: _isPosting
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text(currentStep == 2 ? "Post Project" : "Next"))),
           ])),
       ]),
     );
+  }
+
+  Future<void> _handleNext() async {
+    if (currentStep < 2) {
+      // Validate current step
+      if (currentStep == 0 && titleCtrl.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Judul proyek tidak boleh kosong")));
+        return;
+      }
+      if (currentStep == 1) {
+        if (budgetCtrl.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Budget tidak boleh kosong")));
+          return;
+        }
+        if (deadline == null) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pilih deadline terlebih dahulu")));
+          return;
+        }
+      }
+      setState(() => currentStep++);
+    } else {
+      // Final step - post project
+      if (descCtrl.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Deskripsi proyek tidak boleh kosong")));
+        return;
+      }
+
+      setState(() => _isPosting = true);
+      try {
+        final budget = double.tryParse(budgetCtrl.text) ?? 0;
+        final deadlineStr = "${deadline!.year}-${deadline!.month.toString().padLeft(2, '0')}-${deadline!.day.toString().padLeft(2, '0')}";
+
+        final res = await ProjectService().postProject(
+          title: titleCtrl.text.trim(),
+          description: descCtrl.text.trim(),
+          budget: budget,
+          deadline: deadlineStr,
+          category: category,
+        );
+
+        if (res['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Project berhasil dibuat!")));
+          Navigator.pop(context, true); // Return true to trigger dashboard refresh
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? "Gagal membuat proyek")));
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      } finally {
+        if (mounted) setState(() => _isPosting = false);
+      }
+    }
   }
 
   Widget _buildStep() {
