@@ -82,7 +82,7 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
       const SizedBox(height: 22),
       _label("Kategori"),
       const SizedBox(height: 8),
-      DropdownButtonFormField<String>(value: category, items: ["IT / Web", "Desain", "Marketing", "Video", "Writing"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+      DropdownButtonFormField<String>(initialValue: category, items: ["IT / Web", "Desain", "Marketing", "Video", "Writing"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
         onChanged: (v) => setState(() => category = v!)),
     ]);
   }
@@ -112,7 +112,7 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
       const SizedBox(height: 22),
       _label("Estimasi Durasi"),
       const SizedBox(height: 8),
-      DropdownButtonFormField<String>(value: duration, items: ["1-3 hari", "1 Week", "2 Weeks", "3-4 Weeks", "1-2 Months", "3+ Months"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+      DropdownButtonFormField<String>(initialValue: duration, items: ["1-3 hari", "1 Week", "2 Weeks", "3-4 Weeks", "1-2 Months", "3+ Months"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
         onChanged: (v) => setState(() => duration = v!)),
       const SizedBox(height: 22),
       _label("Complexity"),

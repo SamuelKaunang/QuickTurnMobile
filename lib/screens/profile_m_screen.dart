@@ -565,7 +565,7 @@ class _ProfileMScreenState
                 const SizedBox(height: 20),
 
                 DropdownButtonFormField(
-                  value:
+                  initialValue:
                   availability.isEmpty
                       ? null
                       : availability,

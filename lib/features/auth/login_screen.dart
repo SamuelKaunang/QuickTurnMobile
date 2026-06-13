@@ -143,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 28),
                           Text(
-                            "Selamat Datang\nKembali! 👋",
+                            "Selamat Datang                             \nKembali! 👋",
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 32,
                               fontWeight: FontWeight.w800,
@@ -163,12 +163,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 36),
+                    const SizedBox(height: 50),
 
                     // Form card (glassmorphism-like)
                     Container(
                       width: double.infinity,
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
                       padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
                         color: Colors.white,

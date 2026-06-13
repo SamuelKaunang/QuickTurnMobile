@@ -136,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Widget> _talentFields() => [
     _section("Personal Info", Icons.person, [_field("Full Name", nameCtrl), _field("Headline", headlineCtrl), _field("Bio", bioCtrl, lines: 4)]),
     _section("Education", Icons.school, [_field("University", uniCtrl), _field("Experience", expCtrl),
-      DropdownButtonFormField<String>(value: availability.isEmpty ? null : availability,
+      DropdownButtonFormField<String>(initialValue: availability.isEmpty ? null : availability,
         items: ["Full-time", "Part-time", "Freelance"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
         onChanged: (v) => setState(() => availability = v!), decoration: const InputDecoration(labelText: "Availability"))]),
     _section("Skills", Icons.code, [_field("Skills (comma separated)", skillCtrl)]),
@@ -205,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text("Report Problem", style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w700)),
         const Spacer(), IconButton(onPressed: () => setState(() => showReportModal = false), icon: const Icon(Icons.close))]),
       const SizedBox(height: 20),
-      DropdownButtonFormField<String>(value: reportType,
+      DropdownButtonFormField<String>(initialValue: reportType,
         items: ["BUG", "CONTRACT_ISSUE", "USER_COMPLAINT", "PAYMENT_ISSUE", "OTHER"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
         onChanged: (v) => setState(() => reportType = v!), decoration: const InputDecoration(labelText: "Report Type")),
       const SizedBox(height: 14),

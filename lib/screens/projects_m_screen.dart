@@ -208,7 +208,7 @@ class _ProjectsMScreenState
                         height: 16),
 
                     DropdownButtonFormField(
-                      value:
+                      initialValue:
                       selectedCategory,
 
                       items: const [
