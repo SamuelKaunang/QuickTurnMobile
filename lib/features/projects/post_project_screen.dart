@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
+
 import '../../core/theme/qt_colors.dart';
+import 'services/project_service.dart';
 
 class PostProjectScreen extends StatefulWidget {
   const PostProjectScreen({super.key});
@@ -9,17 +14,44 @@ class PostProjectScreen extends StatefulWidget {
 }
 
 class _PostProjectScreenState extends State<PostProjectScreen> {
+  static const int _stepCount = 4;
+  static const LatLng _bandung = LatLng(-6.9, 107.6);
+
+  final ProjectService _service = ProjectService();
+  final MapController _mapController = MapController();
+
   int currentStep = 0;
   final titleCtrl = TextEditingController();
   final budgetCtrl = TextEditingController();
   final descCtrl = TextEditingController();
   final briefCtrl = TextEditingController();
   final skillCtrl = TextEditingController();
+  // Location inputs (optional — match the backend's optional location fields).
+  final cityCtrl = TextEditingController();
+  final addressCtrl = TextEditingController();
   String category = "IT / Web";
   String duration = "1 Week";
   String complexity = "Beginner";
   DateTime? deadline;
   List<String> skills = [];
+
+  // Selected project location for the map marker. Null until the user picks a
+  // point (tap / current location / Bandung test).
+  LatLng? selectedLocation;
+  bool _locating = false;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    titleCtrl.dispose();
+    budgetCtrl.dispose();
+    descCtrl.dispose();
+    briefCtrl.dispose();
+    skillCtrl.dispose();
+    cityCtrl.dispose();
+    addressCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +65,7 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
       body: Column(children: [
         // Step indicator
         Container(color: Colors.white, padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-          child: Row(children: List.generate(3, (i) => Expanded(child: Row(children: [
+          child: Row(children: List.generate(_stepCount, (i) => Expanded(child: Row(children: [
             if (i > 0) Expanded(child: Container(height: 2, color: i <= currentStep ? QTColors.brandPrimary : QTColors.slate200)),
             Container(width: 32, height: 32,
               decoration: BoxDecoration(shape: BoxShape.circle,
@@ -48,14 +80,21 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
         Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: Colors.white,
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))]),
           child: Row(children: [
-            if (currentStep > 0) Expanded(child: OutlinedButton(onPressed: () => setState(() => currentStep--), child: const Text("Back"))),
+            if (currentStep > 0) Expanded(child: OutlinedButton(onPressed: _submitting ? null : () => setState(() => currentStep--), child: const Text("Back"))),
             if (currentStep > 0) const SizedBox(width: 12),
             Expanded(child: ElevatedButton(
-              onPressed: () {
-                if (currentStep < 2) { setState(() => currentStep++); }
-                else { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Project posted!"))); }
-              },
-              child: Text(currentStep == 2 ? "Post Project" : "Next"))),
+              onPressed: _submitting
+                  ? null
+                  : () {
+                      if (currentStep < _stepCount - 1) {
+                        setState(() => currentStep++);
+                      } else {
+                        _submitProject();
+                      }
+                    },
+              child: _submitting
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                  : Text(currentStep == _stepCount - 1 ? "Post Project" : "Next"))),
           ])),
       ]),
     );
@@ -66,6 +105,7 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
       case 0: return _step1();
       case 1: return _step2();
       case 2: return _step3();
+      case 3: return _step4();
       default: return _step1();
     }
   }
@@ -157,6 +197,282 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
       const SizedBox(height: 22),
       OutlinedButton.icon(onPressed: () {}, icon: const Icon(Icons.attach_file), label: const Text("Upload Attachment")),
     ]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 4 — Project Location
+  // ---------------------------------------------------------------------------
+
+  Widget _step4() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text("Lokasi Proyek", style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 8),
+      Text("Atur lokasi proyek agar talent di sekitar dapat menemukannya. Opsional.",
+        style: GoogleFonts.plusJakartaSans(color: QTColors.textSecondary, height: 1.5)),
+      const SizedBox(height: 28),
+
+      _label("Kota"),
+      const SizedBox(height: 8),
+      TextField(controller: cityCtrl, decoration: const InputDecoration(hintText: "e.g. Bandung", prefixIcon: Icon(Icons.location_city, color: QTColors.textMuted))),
+      const SizedBox(height: 18),
+
+      _label("Alamat"),
+      const SizedBox(height: 8),
+      TextField(controller: addressCtrl, decoration: const InputDecoration(hintText: "e.g. Dago, Bandung", prefixIcon: Icon(Icons.place_outlined, color: QTColors.textMuted))),
+      const SizedBox(height: 22),
+
+      _label("Pilih Titik di Peta"),
+      const SizedBox(height: 6),
+      Text("Ketuk peta untuk menempatkan penanda lokasi.",
+        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: QTColors.textMuted)),
+      const SizedBox(height: 10),
+      _mapPicker(),
+      const SizedBox(height: 12),
+      _locationButtons(),
+      const SizedBox(height: 14),
+      _coordReadout(),
+    ]);
+  }
+
+  Widget _mapPicker() {
+    final initial = selectedLocation ?? _bandung;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: SizedBox(
+        height: 260,
+        child: FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: initial,
+            initialZoom: 12,
+            minZoom: 3,
+            maxZoom: 18,
+            onTap: (_, point) => _setLocation(point, moveMap: false),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.quickturn.quick_turn_mobile',
+              maxZoom: 19,
+            ),
+            if (selectedLocation != null)
+              MarkerLayer(markers: [
+                Marker(
+                  point: selectedLocation!,
+                  width: 44,
+                  height: 44,
+                  child: const Icon(Icons.location_on, color: QTColors.brandPrimary, size: 40,
+                    shadows: [Shadow(color: Colors.black26, blurRadius: 4)]),
+                ),
+              ]),
+            const RichAttributionWidget(attributions: [
+              TextSourceAttribution('© OpenStreetMap contributors'),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _locationButtons() {
+    return Column(children: [
+      SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: OutlinedButton.icon(
+          onPressed: _locating ? null : _useCurrentLocation,
+          icon: _locating
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: QTColors.brandPrimary))
+              : const Icon(Icons.my_location, size: 18),
+          label: Text(_locating ? "Mendapatkan lokasi..." : "Use my current location",
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: QTColors.brandPrimary,
+            side: const BorderSide(color: QTColors.brandPrimary),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+      ),
+      const SizedBox(height: 10),
+      SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: OutlinedButton.icon(
+          onPressed: _useBandungTestLocation,
+          icon: const Icon(Icons.science_outlined, size: 18),
+          label: Text("Use Bandung Test Location",
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: QTColors.textSecondary,
+            side: const BorderSide(color: QTColors.slate300),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _coordReadout() {
+    if (selectedLocation == null) {
+      return Row(children: [
+        const Icon(Icons.location_searching, size: 16, color: QTColors.textMuted),
+        const SizedBox(width: 8),
+        Text("Belum ada lokasi dipilih", style: GoogleFonts.plusJakartaSans(fontSize: 13, color: QTColors.textMuted)),
+      ]);
+    }
+    final loc = selectedLocation!;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: QTColors.brandPrimary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(children: [
+        const Icon(Icons.location_on, size: 18, color: QTColors.brandPrimary),
+        const SizedBox(width: 10),
+        Expanded(child: Text(
+          "Lat ${loc.latitude.toStringAsFixed(5)}, Lng ${loc.longitude.toStringAsFixed(5)}",
+          style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: QTColors.brandPrimary),
+        )),
+        GestureDetector(
+          onTap: () => setState(() => selectedLocation = null),
+          child: const Icon(Icons.close, size: 18, color: QTColors.textMuted),
+        ),
+      ]),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Location handling
+  // ---------------------------------------------------------------------------
+
+  void _setLocation(LatLng point, {required bool moveMap}) {
+    setState(() => selectedLocation = point);
+    if (moveMap) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        try {
+          _mapController.move(point, 13);
+        } catch (_) {
+          // Controller not attached yet; initialCenter covers it.
+        }
+      });
+    }
+  }
+
+  Future<void> _useCurrentLocation() async {
+    setState(() => _locating = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showSnack("Layanan lokasi nonaktif. Aktifkan GPS lalu coba lagi.");
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _showSnack("Izin lokasi ditolak. Gunakan peta atau lokasi tes Bandung.");
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      _setLocation(LatLng(position.latitude, position.longitude), moveMap: true);
+    } catch (_) {
+      _showSnack("Gagal mendapatkan lokasi. Coba lagi.");
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  /// Bandung test fallback for local fullstack testing (lat -6.9, lng 107.6).
+  void _useBandungTestLocation() {
+    if (cityCtrl.text.trim().isEmpty) cityCtrl.text = "Bandung";
+    if (addressCtrl.text.trim().isEmpty) addressCtrl.text = "Bandung Test Location";
+    _setLocation(_bandung, moveMap: true);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Submit
+  // ---------------------------------------------------------------------------
+
+  String? _validateLocation() {
+    final loc = selectedLocation;
+    // Guard against a half-filled coordinate pair. selectedLocation is always
+    // set as a pair, but this keeps the contract explicit and future-proof.
+    if (loc != null) {
+      final lat = loc.latitude;
+      final lng = loc.longitude;
+      if (lat.isNaN || lng.isNaN) {
+        return "Koordinat lokasi tidak valid.";
+      }
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return "Koordinat lokasi di luar rentang yang valid.";
+      }
+    }
+    return null;
+  }
+
+  String _formatDeadline(DateTime d) {
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return "${d.year}-$m-$day";
+  }
+
+  Future<void> _submitProject() async {
+    if (titleCtrl.text.trim().isEmpty) {
+      setState(() => currentStep = 0);
+      _showSnack("Judul proyek wajib diisi.");
+      return;
+    }
+
+    final locError = _validateLocation();
+    if (locError != null) {
+      _showSnack(locError);
+      return;
+    }
+
+    setState(() => _submitting = true);
+
+    final loc = selectedLocation;
+    final budget = num.tryParse(budgetCtrl.text.trim());
+
+    final result = await _service.createProject(
+      title: titleCtrl.text.trim(),
+      category: category,
+      description: descCtrl.text.trim(),
+      brief: briefCtrl.text.trim(),
+      budget: budget,
+      deadline: deadline != null ? _formatDeadline(deadline!) : null,
+      duration: duration,
+      complexity: complexity.toUpperCase(),
+      skills: skills,
+      city: cityCtrl.text.trim().isEmpty ? null : cityCtrl.text.trim(),
+      address: addressCtrl.text.trim().isEmpty ? null : addressCtrl.text.trim(),
+      latitude: loc?.latitude,
+      longitude: loc?.longitude,
+    );
+
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    if (result.success) {
+      Navigator.pop(context, true);
+      _showSnack(result.message ?? "Proyek berhasil dibuat!");
+    } else {
+      _showSnack(result.message ?? "Gagal membuat proyek.");
+    }
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _label(String t) => Text(t, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: QTColors.textPrimary));

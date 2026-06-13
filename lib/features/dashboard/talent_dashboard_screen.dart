@@ -25,11 +25,22 @@ class _TalentDashboardScreenState extends State<TalentDashboardScreen> {
     _pages.addAll([
       _DashboardHome(
         onNavigate: (index) => setState(() => currentIndex = index),
+        onOpenNearby: _openNearby,
       ),
       const BrowseProjectsScreen(),
       const ActiveProjectsScreen(),
       const ChatScreen(),
     ]);
+  }
+
+  /// Opens the Browse tab pre-selected to its "Nearby" mode. Rebuilding the
+  /// Browse page with a fresh instance lets it initialise straight into nearby
+  /// mode without any extra routing plumbing.
+  void _openNearby() {
+    setState(() {
+      _pages[1] = const BrowseProjectsScreen(initialNearby: true);
+      currentIndex = 1;
+    });
   }
 
   @override
@@ -94,8 +105,9 @@ class _TalentDashboardScreenState extends State<TalentDashboardScreen> {
 
 class _DashboardHome extends StatelessWidget {
   final Function(int) onNavigate;
+  final VoidCallback onOpenNearby;
 
-  const _DashboardHome({required this.onNavigate});
+  const _DashboardHome({required this.onNavigate, required this.onOpenNearby});
 
   @override
   Widget build(BuildContext context) {
@@ -268,6 +280,72 @@ class _DashboardHome extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Nearby Projects shortcut
+              GestureDetector(
+                onTap: onOpenNearby,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 16,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: QTColors.brandPrimary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.near_me_rounded,
+                          color: QTColors.brandPrimary,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Nearby Projects",
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "Temukan proyek di sekitar lokasimu",
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                color: QTColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 16,
+                        color: QTColors.textMuted,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
