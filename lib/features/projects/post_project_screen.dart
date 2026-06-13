@@ -83,21 +83,41 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
             if (currentStep > 0) Expanded(child: OutlinedButton(onPressed: _submitting ? null : () => setState(() => currentStep--), child: const Text("Back"))),
             if (currentStep > 0) const SizedBox(width: 12),
             Expanded(child: ElevatedButton(
-              onPressed: _submitting
-                  ? null
-                  : () {
-                      if (currentStep < _stepCount - 1) {
-                        setState(() => currentStep++);
-                      } else {
-                        _submitProject();
-                      }
-                    },
+              onPressed: _submitting ? null : _handleNext,
               child: _submitting
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
                   : Text(currentStep == _stepCount - 1 ? "Post Project" : "Next"))),
           ])),
       ]),
     );
+  }
+
+  Future<void> _handleNext() async {
+    if (currentStep < _stepCount - 1) {
+      // Per-step validation before advancing (from main).
+      if (currentStep == 0 && titleCtrl.text.trim().isEmpty) {
+        _showSnack("Judul proyek tidak boleh kosong");
+        return;
+      }
+      if (currentStep == 1) {
+        if (budgetCtrl.text.trim().isEmpty) {
+          _showSnack("Budget tidak boleh kosong");
+          return;
+        }
+        if (deadline == null) {
+          _showSnack("Pilih deadline terlebih dahulu");
+          return;
+        }
+      }
+      if (currentStep == 2 && descCtrl.text.trim().isEmpty) {
+        _showSnack("Deskripsi proyek tidak boleh kosong");
+        return;
+      }
+      setState(() => currentStep++);
+    } else {
+      // Final step (location) — create the project with its optional location.
+      await _submitProject();
+    }
   }
 
   Widget _buildStep() {
