@@ -3,12 +3,14 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../network/dio_client.dart';
 
 class PushNotificationService {
-  static final PushNotificationService _instance = PushNotificationService._internal();
+  static final PushNotificationService _instance =
+      PushNotificationService._internal();
   factory PushNotificationService() => _instance;
   PushNotificationService._internal();
 
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotif = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotif =
+      FlutterLocalNotificationsPlugin();
   final DioClient _dioClient = DioClient();
 
   Future<void> initialize() async {
@@ -28,7 +30,7 @@ class PushNotificationService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
-    
+
     await _localNotif.initialize(settings: initializationSettings);
 
     // 3. Tangani pesan ketika aplikasi sedang aktif (Foreground)
