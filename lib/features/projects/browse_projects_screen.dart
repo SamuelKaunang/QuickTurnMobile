@@ -2,9 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import 'services/project_service.dart';
+import 'widgets/nearby_projects_view.dart';
+
+/// Browse mode: the classic searchable list vs. the location-based nearby view.
+enum BrowseMode { all, nearby }
 
 class BrowseProjectsScreen extends StatefulWidget {
-  const BrowseProjectsScreen({super.key});
+  /// When true the screen opens directly in [BrowseMode.nearby] — used by the
+  /// dashboard "Nearby Projects" shortcut.
+  final bool initialNearby;
+
+  const BrowseProjectsScreen({super.key, this.initialNearby = false});
   @override
   State<BrowseProjectsScreen> createState() => _BrowseProjectsScreenState();
 }
@@ -15,6 +23,8 @@ class _BrowseProjectsScreenState extends State<BrowseProjectsScreen> {
   final categories = ["All", "IT / Web", "Desain", "Marketing", "Video", "Writing"];
   bool _isLoading = true;
   List<Map<String, dynamic>> _projects = [];
+
+  late BrowseMode _mode = widget.initialNearby ? BrowseMode.nearby : BrowseMode.all;
 
   @override
   void initState() {
@@ -77,36 +87,89 @@ class _BrowseProjectsScreenState extends State<BrowseProjectsScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text("Browse Projects", style: GoogleFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800)),
               const SizedBox(height: 6),
-              Text("Find projects that match your skills", style: GoogleFonts.plusJakartaSans(color: QTColors.textSecondary)),
-              const SizedBox(height: 24),
-              TextField(controller: searchCtrl, onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(hintText: "Search projects...", prefixIcon: const Icon(Icons.search, color: QTColors.textMuted),
-                  filled: true, fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none))),
-              const SizedBox(height: 16),
-              SizedBox(height: 42, child: ListView(scrollDirection: Axis.horizontal, children: categories.map((c) {
-                final sel = selectedCategory == c;
-                return Padding(padding: const EdgeInsets.only(right: 8), child: FilterChip(
-                  label: Text(c), selected: sel, onSelected: (_) => setState(() => selectedCategory = c),
-                  selectedColor: QTColors.brandPrimary, checkmarkColor: Colors.white, backgroundColor: Colors.white,
-                  labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : QTColors.textSecondary),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999), side: BorderSide(color: sel ? QTColors.brandPrimary : QTColors.slate200))));
-              }).toList())),
-              const SizedBox(height: 24),
-              Text("${filtered.length} Results", style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: QTColors.textSecondary)),
-              const SizedBox(height: 16),
-              if (filtered.isEmpty)
-                Center(child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
-                  child: Text("Tidak ada proyek ditemukan", style: GoogleFonts.plusJakartaSans(color: QTColors.textMuted, fontStyle: FontStyle.italic)),
-                ))
-              else
-                ...filtered.map((p) => Padding(padding: const EdgeInsets.only(bottom: 16), child: _projectCard(p))),
+              Text(_mode == BrowseMode.all ? "Find projects that match your skills" : "Temukan proyek di sekitar lokasimu",
+                style: GoogleFonts.plusJakartaSans(color: QTColors.textSecondary)),
+              const SizedBox(height: 20),
+              // Mode selector: All Projects | Nearby
+              _modeSelector(),
+              const SizedBox(height: 20),
+              if (_mode == BrowseMode.all) ..._allProjectsContent(filtered)
+              else const NearbyProjectsView(),
             ]),
           ),
         ),
       ),
     );
+  }
+
+  Widget _modeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: QTColors.slate100,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(children: [
+        _modeTab("All Projects", Icons.grid_view_rounded, BrowseMode.all),
+        _modeTab("Nearby", Icons.near_me_rounded, BrowseMode.nearby),
+      ]),
+    );
+  }
+
+  Widget _modeTab(String label, IconData icon, BrowseMode mode) {
+    final sel = _mode == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _mode = mode),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: sel ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+            boxShadow: sel ? [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8)] : null,
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, size: 18, color: sel ? QTColors.brandPrimary : QTColors.textSecondary),
+            const SizedBox(width: 8),
+            Text(label, style: GoogleFonts.plusJakartaSans(
+              fontSize: 14, fontWeight: FontWeight.w700,
+              color: sel ? QTColors.brandPrimary : QTColors.textSecondary)),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _allProjectsContent(List<Map<String, dynamic>> filtered) {
+    return [
+      // Search
+      TextField(controller: searchCtrl, onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(hintText: "Search projects...", prefixIcon: const Icon(Icons.search, color: QTColors.textMuted),
+          filled: true, fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none))),
+      const SizedBox(height: 16),
+      // Category chips
+      SizedBox(height: 42, child: ListView(scrollDirection: Axis.horizontal, children: categories.map((c) {
+        final sel = selectedCategory == c;
+        return Padding(padding: const EdgeInsets.only(right: 8), child: FilterChip(
+          label: Text(c), selected: sel, onSelected: (_) => setState(() => selectedCategory = c),
+          selectedColor: QTColors.brandPrimary, checkmarkColor: Colors.white, backgroundColor: Colors.white,
+          labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : QTColors.textSecondary),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999), side: BorderSide(color: sel ? QTColors.brandPrimary : QTColors.slate200))));
+      }).toList())),
+      const SizedBox(height: 24),
+      Text("${filtered.length} Results", style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: QTColors.textSecondary)),
+      const SizedBox(height: 16),
+      // Project list
+      if (filtered.isEmpty)
+        Center(child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Text("Tidak ada proyek ditemukan", style: GoogleFonts.plusJakartaSans(color: QTColors.textMuted, fontStyle: FontStyle.italic)),
+        ))
+      else
+        ...filtered.map((p) => Padding(padding: const EdgeInsets.only(bottom: 16), child: _projectCard(p))),
+    ];
   }
 
   Widget _projectCard(Map<String, dynamic> p) {

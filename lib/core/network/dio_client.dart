@@ -10,10 +10,23 @@ class DioClient {
 
   factory DioClient() => _instance;
 
+  /// Single source of truth for the API base URL.
+  ///
+  /// Defaults to the deployed Azure backend. For local development against the
+  /// `feature/geoloc-backend` branch on an Android emulator, override it without
+  /// touching code by running:
+  ///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080
+  /// (10.0.2.2 is the emulator's alias for the host machine's localhost.)
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue:
+        'https://quickturn-api-bxcqfshtdtfjhaav.indonesiacentral-01.azurewebsites.net',
+  );
+
   DioClient._internal() {
     dio = Dio(BaseOptions(
-      // QuickTurn API backend (Azure)
-      baseUrl: 'https://quickturn-api-bxcqfshtdtfjhaav.indonesiacentral-01.azurewebsites.net',
+      // QuickTurn API backend (see [baseUrl] above for local-override notes)
+      baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
       contentType: 'application/json',
