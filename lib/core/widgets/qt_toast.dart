@@ -32,7 +32,6 @@ class QTToast {
         accentColor = QTColors.warning;
         break;
       case QTToastType.info:
-      default:
         icon = Icons.info_rounded;
         accentColor = QTColors.info;
         break;
@@ -54,7 +53,7 @@ class QTToast {
             builder: (context, value, child) {
               return Transform.translate(
                 offset: Offset(0, (1 - value) * -50),
-                child: Opacity(opacity: value, child: child),
+                child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
               );
             },
             child: ClipRRect(
