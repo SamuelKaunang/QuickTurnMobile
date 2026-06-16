@@ -7,10 +7,17 @@ import 'core/services/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  await PushNotificationService().initialize();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    // Jalankan inisialisasi push notification tanpa await agar tidak mem-block startup aplikasi
+    PushNotificationService().initialize().catchError((e) {
+      print("Gagal inisialisasi push notification: $e");
+    });
+  } catch (e) {
+    print("Gagal inisialisasi Firebase: $e");
+  }
   runApp(const QuickTurnApp());
 }
 
