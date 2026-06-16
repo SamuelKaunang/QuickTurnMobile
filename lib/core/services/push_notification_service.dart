@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../network/dio_client.dart';
 
 class PushNotificationService {
@@ -14,6 +15,11 @@ class PushNotificationService {
   final DioClient _dioClient = DioClient();
 
   Future<void> initialize() async {
+    if (kIsWeb) {
+      print("PushNotificationService: Web platform detected. Skipping initialization.");
+      return;
+    }
+
     // 1. Minta izin notifikasi (Android 13+ & iOS)
     NotificationSettings settings = await _fcm.requestPermission(
       alert: true,
@@ -66,6 +72,10 @@ class PushNotificationService {
 
   /// Registrasi Token Perangkat ke Database Backend
   Future<void> registerDeviceToken() async {
+    if (kIsWeb) {
+      print("PushNotificationService: Web platform detected. Skipping token registration.");
+      return;
+    }
     try {
       String? token = await _fcm.getToken();
       if (token != null) {
