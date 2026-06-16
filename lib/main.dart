@@ -5,6 +5,7 @@ import 'core/theme/qt_theme.dart';
 import 'features/auth/landing_screen.dart';
 import 'core/services/push_notification_service.dart';
 
+// Entry point for the QuickTurn Mobile App
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
