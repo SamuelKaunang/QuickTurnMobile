@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/qt_colors.dart';
+import '../../core/widgets/qt_toast.dart';
 import '../auth/services/auth_service.dart';
 import '../auth/landing_screen.dart';
 
@@ -161,8 +162,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final res = await AuthService().updateProfile(body);
     setState(() => isSaving = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'Profil disimpan')),
+    final isSuccess = res['success'] == true;
+    QTToast.show(
+      context,
+      title: isSuccess ? "Profil Diperbarui! ✨" : "Gagal Memperbarui",
+      message: res['message'] ?? (isSuccess ? "Profil Anda berhasil disimpan." : "Terjadi kesalahan."),
+      type: isSuccess ? QTToastType.success : QTToastType.error,
     );
   }
 
@@ -173,8 +178,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final res = await AuthService().deleteAccount();
     setState(() => isLoading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'Akun dihapus')),
+    final isSuccess = res['success'] == true;
+    QTToast.show(
+      context,
+      title: isSuccess ? "Akun Dihapus" : "Gagal Menghapus",
+      message: res['message'] ?? (isSuccess ? "Akun Anda telah berhasil dihapus." : "Terjadi kesalahan."),
+      type: isSuccess ? QTToastType.success : QTToastType.error,
     );
 
     if (res['success'] == true) {
@@ -756,8 +765,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: ElevatedButton(
                           onPressed: () {
                             setState(() => showReportModal = false);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Report submitted!")),
+                            QTToast.show(
+                              context,
+                              title: "Laporan Terkirim! 🚀",
+                              message: "Masalah berhasil dilaporkan ke admin.",
+                              type: QTToastType.success,
                             );
                           },
                           child: const Text("Submit"),

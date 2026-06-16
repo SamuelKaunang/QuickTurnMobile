@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
+import '../../core/widgets/qt_toast.dart';
 import '../projects/services/project_service.dart';
 
 class ActiveProjectsScreen extends StatefulWidget {
@@ -384,7 +385,7 @@ class _ActiveProjectsScreenState extends State<ActiveProjectsScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       if (linkCtrl.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Link tidak boleh kosong")));
+                        QTToast.show(context, title: "Validasi Gagal", message: "Link tidak boleh kosong.", type: QTToastType.warning);
                         return;
                       }
                       final res = await ProjectService().submitFinishing(
@@ -392,11 +393,11 @@ class _ActiveProjectsScreenState extends State<ActiveProjectsScreen> {
                         finishingLink: linkCtrl.text.trim(),
                       );
                       if (res['success'] == true) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Work submitted successfully!")));
+                        QTToast.show(context, title: "Sukses! 🎉", message: "Pekerjaan berhasil dikirimkan.", type: QTToastType.success);
                         Navigator.pop(context);
                         _loadProjects();
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? "Gagal mengirimkan pekerjaan")));
+                        QTToast.show(context, title: "Gagal Kirim", message: res['message'] ?? "Terjadi kesalahan.", type: QTToastType.error);
                       }
                     },
                     child: const Text("Submit Work"),
@@ -450,11 +451,11 @@ class _ActiveProjectsScreenState extends State<ActiveProjectsScreen> {
                         comment: reviewCtrl.text,
                       );
                       if (res['success'] == true) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Review submitted successfully!")));
+                        QTToast.show(context, title: "Ulasan Terkirim! ⭐", message: "Terima kasih atas penilaian Anda.", type: QTToastType.success);
                         Navigator.pop(ctx);
                         _loadProjects();
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? "Gagal mengirimkan ulasan")));
+                        QTToast.show(context, title: "Gagal Mengulas", message: res['message'] ?? "Terjadi kesalahan.", type: QTToastType.error);
                       }
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: QTColors.warning, foregroundColor: Colors.black),

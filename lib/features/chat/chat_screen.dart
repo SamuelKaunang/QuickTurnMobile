@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
+import '../../core/widgets/qt_toast.dart';
 import '../../core/network/websocket_manager.dart';
 import '../auth/services/auth_service.dart';
 import 'services/chat_service.dart';
@@ -156,8 +157,11 @@ class _ChatScreenState extends State<ChatScreen> {
     if (msgCtrl.text.trim().isEmpty && selectedFile == null) return;
     
     if (dynamicContacts.isEmpty || activeChat >= dynamicContacts.length) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Pilih kontak terlebih dahulu")),
+      QTToast.show(
+        context,
+        title: "Pilih Kontak",
+        message: "Silakan pilih kontak terlebih dahulu sebelum mengirim pesan.",
+        type: QTToastType.warning,
       );
       return;
     }
@@ -179,8 +183,11 @@ class _ChatScreenState extends State<ChatScreen> {
         originalFilename = uploadRes['fileName'];
         fileSize = uploadRes['fileSize'] ?? 0;
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(uploadRes['message'] ?? 'Gagal mengunggah berkas')),
+        QTToast.show(
+          context,
+          title: "Gagal Kirim File",
+          message: uploadRes['message'] ?? 'Gagal mengunggah berkas.',
+          type: QTToastType.error,
         );
         return;
       }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import '../../core/widgets/qt_glass_card.dart';
+import '../../core/widgets/qt_toast.dart';
 import '../projects/post_project_screen.dart';
 import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
@@ -303,11 +304,21 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
                     onPressed: () async {
                       final res = await ProjectService().confirmFinishing(p['id']);
                       if (res['success'] == true) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Project completed successfully!")));
+                        QTToast.show(
+                          context,
+                          title: "Proyek Selesai! 🎉",
+                          message: "Pekerjaan proyek berhasil disetujui dan diselesaikan.",
+                          type: QTToastType.success,
+                        );
                         Navigator.pop(ctx);
                         _loadDashboardData();
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? "Gagal mengonfirmasi proyek")));
+                        QTToast.show(
+                          context,
+                          title: "Gagal Mengonfirmasi",
+                          message: res['message'] ?? "Gagal mengonfirmasi penyelesaian proyek.",
+                          type: QTToastType.error,
+                        );
                       }
                     },
                     icon: const Icon(Icons.check), label: const Text("Approve and Complete"))),
@@ -419,12 +430,22 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
                         onPressed: () async {
                           final res = await ProjectService().rejectApplicant(projectId: p['id'], applicationId: a['id']);
                           if (res['success'] == true) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pelamar ditolak")));
+                            QTToast.show(
+                              context,
+                              title: "Pelamar Ditolak",
+                              message: "Lamaran telah ditolak.",
+                              type: QTToastType.warning,
+                            );
                             setSheetState(() {
                               isLoadingApps = true;
                             });
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? "Gagal menolak pelamar")));
+                            QTToast.show(
+                              context,
+                              title: "Gagal Menolak",
+                              message: res['message'] ?? "Gagal memproses penolakan.",
+                              type: QTToastType.error,
+                            );
                           }
                         },
                         style: OutlinedButton.styleFrom(foregroundColor: QTColors.slate500),
@@ -435,11 +456,21 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
                         onPressed: () async {
                           final res = await ProjectService().acceptApplicant(projectId: p['id'], applicationId: a['id']);
                           if (res['success'] == true) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pelamar diterima, project dimulai!")));
+                            QTToast.show(
+                              context,
+                              title: "Pelamar Diterima! 🚀",
+                              message: "Lamaran telah disetujui, proyek dimulai.",
+                              type: QTToastType.success,
+                            );
                             Navigator.pop(ctx);
                             _loadDashboardData();
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? "Gagal menerima pelamar")));
+                            QTToast.show(
+                              context,
+                              title: "Gagal Menerima",
+                              message: res['message'] ?? "Gagal memproses penerimaan.",
+                              type: QTToastType.error,
+                            );
                           }
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: QTColors.accentBeginner),
@@ -473,11 +504,21 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
           onPressed: () async {
             final res = await ProjectService().submitReview(projectId: p['id'], rating: rating, comment: reviewCtrl.text);
             if (res['success'] == true) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Review submitted successfully!")));
+              QTToast.show(
+                context,
+                title: "Ulasan Terkirim! ⭐",
+                message: "Terima kasih atas ulasan Anda.",
+                type: QTToastType.success,
+              );
               Navigator.pop(ctx);
               _loadDashboardData();
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? "Gagal mengirim ulasan")));
+              QTToast.show(
+                context,
+                title: "Gagal Mengirim",
+                message: res['message'] ?? "Gagal mengirim ulasan.",
+                type: QTToastType.error,
+              );
             }
           },
           style: ElevatedButton.styleFrom(backgroundColor: QTColors.warning, foregroundColor: Colors.black),

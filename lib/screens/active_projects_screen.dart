@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/widgets/qt_toast.dart';
 
 class ActiveProjectsScreen
     extends StatefulWidget {
@@ -1157,16 +1158,11 @@ class _ActiveProjectsScreenState
                         Navigator.pop(
                             context);
 
-                        ScaffoldMessenger
-                            .of(
-                            context)
-                            .showSnackBar(
-
-                          const SnackBar(
-                            content: Text(
-                              "Work submitted successfully!",
-                            ),
-                          ),
+                        QTToast.show(
+                          context,
+                          title: "Pekerjaan Dikirim! 🎉",
+                          message: "Pekerjaan berhasil dikirim.",
+                          type: QTToastType.success,
                         );
                       },
 
@@ -1387,17 +1383,11 @@ class _ActiveProjectsScreenState
                             Navigator.pop(
                                 context);
 
-                            ScaffoldMessenger
-                                .of(
-                                context)
-                                .showSnackBar(
-
-                              const SnackBar(
-                                content:
-                                Text(
-                                  "Review submitted!",
-                                ),
-                              ),
+                            QTToast.show(
+                              context,
+                              title: "Ulasan Terkirim! ⭐",
+                              message: "Ulasan berhasil dikirim.",
+                              type: QTToastType.success,
                             );
                           },
 

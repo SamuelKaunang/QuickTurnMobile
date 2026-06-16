@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/widgets/qt_toast.dart';
 
 class ProjectsMScreen extends StatefulWidget {
   const ProjectsMScreen({super.key});
@@ -1042,16 +1043,11 @@ class _ProjectsMScreenState
                         Navigator.pop(
                             context);
 
-                        ScaffoldMessenger
-                            .of(
-                            context)
-                            .showSnackBar(
-
-                          const SnackBar(
-                            content: Text(
-                              "Application submitted!",
-                            ),
-                          ),
+                        QTToast.show(
+                          context,
+                          title: "Aplikasi Terkirim! 🚀",
+                          message: "Lamaran proyek Anda berhasil dikirim.",
+                          type: QTToastType.success,
                         );
                       },
 

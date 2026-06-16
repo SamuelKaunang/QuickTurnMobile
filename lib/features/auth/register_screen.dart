@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
+import '../../core/widgets/qt_toast.dart';
 import 'login_screen.dart';
 import 'services/auth_service.dart';
 
@@ -505,8 +506,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => isLoading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'Proses registrasi selesai')),
+    final isSuccess = res['success'] == true;
+    QTToast.show(
+      context,
+      title: isSuccess ? "Registrasi Berhasil! 🎉" : "Registrasi Gagal",
+      message: res['message'] ?? (isSuccess ? "Silakan masuk ke akun Anda." : "Terjadi kesalahan."),
+      type: isSuccess ? QTToastType.success : QTToastType.error,
     );
 
     if (res['success'] == true) {

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/theme/qt_colors.dart';
+import '../../core/widgets/qt_toast.dart';
 import 'services/project_service.dart';
 
 class PostProjectScreen extends StatefulWidget {
@@ -492,7 +493,15 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    final isSuccess = message.toLowerCase().contains("berhasil") || message.toLowerCase().contains("success");
+    final isWarning = message.toLowerCase().contains("kosong") || message.toLowerCase().contains("pilih") || message.toLowerCase().contains("wajib") || message.toLowerCase().contains("tidak valid");
+    
+    QTToast.show(
+      context,
+      title: isSuccess ? "Berhasil! 🎉" : (isWarning ? "Validasi" : "Info"),
+      message: message,
+      type: isSuccess ? QTToastType.success : (isWarning ? QTToastType.warning : QTToastType.error),
+    );
   }
 
   Widget _label(String t) => Text(t, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: QTColors.textPrimary));

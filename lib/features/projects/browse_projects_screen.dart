@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
+import '../../core/widgets/qt_toast.dart';
 import 'services/project_service.dart';
 import 'widgets/nearby_projects_view.dart';
 
@@ -329,12 +330,12 @@ class _BrowseProjectsScreenState extends State<BrowseProjectsScreen> {
           SizedBox(width: double.infinity, height: 54, child: ElevatedButton(
             onPressed: () async {
               if (proposalCtrl.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Proposal tidak boleh kosong")));
+                QTToast.show(context, title: "Validasi Gagal", message: "Proposal tidak boleh kosong.", type: QTToastType.warning);
                 return;
               }
               final bid = double.tryParse(bidCtrl.text) ?? 0;
               if (bid <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bid amount harus lebih dari 0")));
+                QTToast.show(context, title: "Validasi Gagal", message: "Bid amount harus lebih dari 0.", type: QTToastType.warning);
                 return;
               }
               final res = await ProjectService().applyProject(
@@ -343,11 +344,11 @@ class _BrowseProjectsScreenState extends State<BrowseProjectsScreen> {
                 bidAmount: bid,
               );
               if (res['success'] == true) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Application submitted!")));
+                QTToast.show(context, title: "Lamaran Dikirim! 🚀", message: "Proposal Anda berhasil dikirim.", type: QTToastType.success);
                 Navigator.pop(context);
                 _loadProjects();
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? "Gagal melamar")));
+                QTToast.show(context, title: "Gagal Melamar", message: res['message'] ?? "Terjadi kesalahan.", type: QTToastType.error);
               }
             },
             child: Text("Submit Application", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)))),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
+import '../../core/widgets/qt_toast.dart';
 import '../dashboard/talent_dashboard_screen.dart';
 import '../dashboard/umkm_dashboard_screen.dart';
 import 'services/auth_service.dart';
@@ -655,17 +656,19 @@ class _LoginScreenState extends State<LoginScreen> {
   void _sendOtp() async {
     final email = forgotEmailController.text.trim();
     if (email.isEmpty || !email.contains("@")) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Masukkan email yang valid")),
-      );
+      QTToast.show(context, title: "Validasi Gagal", message: "Masukkan email yang valid.", type: QTToastType.warning);
       return;
     }
     setState(() => isLoading = true);
     final res = await AuthService().forgotPassword(email);
     setState(() => isLoading = false);
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'OTP dikirim')),
+    final isSuccess = res['success'] == true;
+    QTToast.show(
+      context,
+      title: isSuccess ? "OTP Dikirim! ✉" : "Gagal Kirim OTP",
+      message: res['message'] ?? (isSuccess ? "Kode OTP berhasil dikirim ke email Anda." : "Terjadi kesalahan."),
+      type: isSuccess ? QTToastType.success : QTToastType.error,
     );
     if (res['success'] == true) {
       setState(() => forgotStep = 1);
@@ -676,17 +679,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = forgotEmailController.text.trim();
     final code = otpControllers.map((c) => c.text.trim()).join();
     if (code.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Masukkan 6 digit kode OTP")),
-      );
+      QTToast.show(context, title: "Validasi Gagal", message: "Masukkan 6 digit kode OTP.", type: QTToastType.warning);
       return;
     }
     setState(() => isLoading = true);
     final res = await AuthService().verifyResetCode(email: email, code: code);
     setState(() => isLoading = false);
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'OTP terverifikasi')),
+    final isSuccess = res['success'] == true;
+    QTToast.show(
+      context,
+      title: isSuccess ? "OTP Terverifikasi! Key" : "Verifikasi Gagal",
+      message: res['message'] ?? (isSuccess ? "Silakan masukkan password baru." : "Terjadi kesalahan."),
+      type: isSuccess ? QTToastType.success : QTToastType.error,
     );
     if (res['success'] == true) {
       setState(() {
@@ -701,21 +706,15 @@ class _LoginScreenState extends State<LoginScreen> {
     final confirmPass = confirmNewPasswordController.text;
     
     if (newPass.isEmpty || newPass.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password minimal 6 karakter")),
-      );
+      QTToast.show(context, title: "Validasi Gagal", message: "Password minimal 6 karakter.", type: QTToastType.warning);
       return;
     }
     if (newPass != confirmPass) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password konfirmasi tidak cocok")),
-      );
+      QTToast.show(context, title: "Validasi Gagal", message: "Password konfirmasi tidak cocok.", type: QTToastType.warning);
       return;
     }
     if (resetToken == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Token reset tidak ditemukan. Silakan verifikasi OTP kembali.")),
-      );
+      QTToast.show(context, title: "Sesi Habis", message: "Token reset tidak ditemukan. Silakan verifikasi OTP kembali.", type: QTToastType.error);
       return;
     }
     
@@ -726,8 +725,12 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     setState(() => isLoading = false);
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'Password berhasil diubah')),
+    final isSuccess = res['success'] == true;
+    QTToast.show(
+      context,
+      title: isSuccess ? "Password Diubah! 🔒" : "Gagal Mengubah",
+      message: res['message'] ?? (isSuccess ? "Password Anda berhasil diperbarui." : "Terjadi kesalahan."),
+      type: isSuccess ? QTToastType.success : QTToastType.error,
     );
     if (res['success'] == true) {
       setState(() {
@@ -768,8 +771,11 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(res['message'] ?? 'Login gagal')),
+      QTToast.show(
+        context,
+        title: "Login Gagal 🔑",
+        message: res['message'] ?? "Email atau password salah.",
+        type: QTToastType.error,
       );
     }
   }

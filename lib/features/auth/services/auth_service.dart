@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/services/push_notification_service.dart';
 
 class AuthService {
   final DioClient _client = DioClient();
@@ -27,6 +28,9 @@ class AuthService {
         // Save to secure storage via DioClient helper methods
         await _client.saveToken(token);
         await _client.saveUserRole(role);
+        
+        // Register device token for push notifications
+        PushNotificationService().registerDeviceToken();
         
         // Return full data map
         return {
