@@ -9,9 +9,19 @@ class PushNotificationService {
   factory PushNotificationService() => _instance;
   PushNotificationService._internal();
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotif =
-      FlutterLocalNotificationsPlugin();
+  FirebaseMessaging? _fcmInstance;
+  FlutterLocalNotificationsPlugin? _localNotifInstance;
+
+  FirebaseMessaging get _fcm {
+    _fcmInstance ??= FirebaseMessaging.instance;
+    return _fcmInstance!;
+  }
+
+  FlutterLocalNotificationsPlugin get _localNotif {
+    _localNotifInstance ??= FlutterLocalNotificationsPlugin();
+    return _localNotifInstance!;
+  }
+
   final DioClient _dioClient = DioClient();
 
   Future<void> initialize() async {
