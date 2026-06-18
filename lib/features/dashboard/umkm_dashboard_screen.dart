@@ -85,9 +85,9 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
       );
     }
 
-    final activeProjectsCount = _myProjects.where((p) => p["status"] == "ONGOING" || p["status"] == "OPEN" || p["status"] == "DONE").length;
-    final totalApplicantsCount = _myProjects.fold<int>(0, (sum, p) => sum + ((p["applicantCount"] ?? 0) as int));
-    final completedProjectsCount = _myProjects.where((p) => p["status"] == "CLOSED").length;
+    final activeProjectsCount = _myProjects.where((p) => {"ONGOING", "OPEN", "DONE"}.contains(_status(p))).length;
+    final totalApplicantsCount = _myProjects.fold<int>(0, (sum, p) => sum + _asInt(p["applicantCount"]));
+    final completedProjectsCount = _myProjects.where((p) => _status(p) == "CLOSED").length;
 
     return Container(
       decoration: const BoxDecoration(
@@ -201,7 +201,7 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
   }
 
   Widget _projectCard(Map<String, dynamic> p) {
-    final status = p["status"] as String;
+    final status = _status(p);
     final color = QTColors.statusColor(status);
     return GestureDetector(
       onTap: () => _showProjectAction(p),
@@ -235,6 +235,22 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
     );
   }
 
+  /// Defensive int parsing: the backend may send numeric fields (applicantCount,
+  /// rating, ...) as an int, a double, a numeric string, or omit them entirely
+  /// (null). A raw `as int` cast throws "type 'Null' is not a subtype of type
+  /// 'int'" and replaces the whole screen with the red error widget.
+  /// Normalized project status (uppercased + trimmed) so gating against
+  /// "OPEN"/"ONGOING"/"DONE"/"CLOSED" never breaks on a casing/whitespace
+  /// quirk from the backend payload.
+  static String _status(Map<String, dynamic> p) => (p["status"] ?? "").toString().trim().toUpperCase();
+
+  static int _asInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
   String _formatBudgetDouble(dynamic amount) {
     if (amount == null) return "0";
     final numVal = double.tryParse(amount.toString()) ?? 0.0;
@@ -247,7 +263,7 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
   }
 
   void _showProjectAction(Map<String, dynamic> p) {
-    final status = p["status"] as String;
+    final status = _status(p);
     bool isLoadingReview = (status == "CLOSED");
     Map<String, dynamic>? myReview;
 
@@ -312,6 +328,10 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
                         );
                         Navigator.pop(ctx);
                         _loadDashboardData();
+                        // FR-05.1: after closing the project the UMKM must rate
+                        // the talent — flow straight into the rating dialog so
+                        // the review step isn't left stranded behind a re-tap.
+                        _showRateDialog(p);
                       } else {
                         QTToast.show(
                           context,
@@ -334,7 +354,7 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
                       child: Column(children: [
                         Text("You rated this talent", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
-                        Text("★" * (myReview!["rating"] as int), style: const TextStyle(color: Colors.amber, fontSize: 24)),
+                        Text("★" * _asInt(myReview!["rating"]), style: const TextStyle(color: Colors.amber, fontSize: 24)),
                         if (myReview!["comment"] != null && myReview!["comment"].toString().isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Text(

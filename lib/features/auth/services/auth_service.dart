@@ -78,19 +78,33 @@ class AuthService {
       );
 
       final responseData = response.data;
-      if (responseData['success'] == true) {
+      final nestedData = responseData is Map ? responseData['data'] : null;
+      final registrationData = nestedData is Map ? nestedData : null;
+      final registrationSucceeded = registrationData?['success'] == true ||
+          (registrationData == null &&
+              responseData is Map &&
+              responseData['success'] == true);
+      final message = registrationData?['message']?.toString() ??
+          (responseData is Map ? responseData['message']?.toString() : null);
+
+      if (registrationSucceeded) {
         return {
           'success': true,
-          'message': responseData['message'] ?? 'Registrasi berhasil',
+          'message': message ?? 'Registrasi berhasil',
         };
       } else {
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Registrasi gagal',
+          'message': message ?? 'Registrasi gagal',
         };
       }
     } on DioException catch (e) {
-      final errorMsg = e.response?.data?['message'] ?? 'Terjadi kesalahan jaringan';
+      final errorData = e.response?.data;
+      final nestedData = errorData is Map ? errorData['data'] : null;
+      final errorMsg =
+          (nestedData is Map ? nestedData['message']?.toString() : null) ??
+              (errorData is Map ? errorData['message']?.toString() : null) ??
+              'Terjadi kesalahan jaringan';
       return {
         'success': false,
         'message': errorMsg,

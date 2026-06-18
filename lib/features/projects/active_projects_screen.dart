@@ -30,13 +30,19 @@ class _ActiveProjectsScreenState extends State<ActiveProjectsScreen> {
     try {
       final list = await ProjectService().getParticipatingProjects();
       
-      final ongoingList = list.where((p) => p['myApplicationStatus'] == 'APPROVED' && (p['status'] == 'ONGOING' || p['status'] == 'DONE')).toList();
-      final completedList = list.where((p) => p['myApplicationStatus'] == 'APPROVED' && p['status'] == 'CLOSED').toList();
-      final rejectedList = list.where((p) => p['myApplicationStatus'] == 'REJECTED').toList();
+      // Normalize status / application-status (uppercase + trim) so a casing
+      // quirk from the backend can't drop a CLOSED project out of the
+      // completed list and hide the "Leave Review" button.
+      String st(Map<String, dynamic> p) => (p['status'] ?? '').toString().trim().toUpperCase();
+      String appSt(Map<String, dynamic> p) => (p['myApplicationStatus'] ?? '').toString().trim().toUpperCase();
+
+      final ongoingList = list.where((p) => appSt(p) == 'APPROVED' && (st(p) == 'ONGOING' || st(p) == 'DONE')).toList();
+      final completedList = list.where((p) => appSt(p) == 'APPROVED' && st(p) == 'CLOSED').toList();
+      final rejectedList = list.where((p) => appSt(p) == 'REJECTED').toList();
 
       // For each completed project, fetch my review
       for (final p in completedList) {
-        final projectId = p['id'] as int;
+        final projectId = _asInt(p['id']);
         final res = await ProjectService().getMyReview(projectId);
         if (res['success'] == true && res['data'] != null) {
           _reviews[projectId] = res['data'];
@@ -58,6 +64,16 @@ class _ActiveProjectsScreenState extends State<ActiveProjectsScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// Defensive int parsing: the backend may send `id` / `rating` as an int, a
+  /// double, a numeric string, or omit it entirely (null). A raw `as int` cast
+  /// crashes the whole screen with "type 'Null' is not a subtype of type 'int'".
+  static int _asInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
   }
 
   String _formatBudgetDouble(dynamic amount) {
@@ -131,9 +147,9 @@ class _ActiveProjectsScreenState extends State<ActiveProjectsScreen> {
       );
 
   Widget _ongoingCard(Map<String, dynamic> p) {
-    final status = p["status"] as String;
+    final status = (p["status"] ?? "").toString().trim().toUpperCase();
     final isSubmitted = (status == "DONE");
-    final submissionRejected = p["latestSubmissionStatus"] == "REJECTED";
+    final submissionRejected = (p["latestSubmissionStatus"] ?? "").toString().trim().toUpperCase() == "REJECTED";
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -212,7 +228,7 @@ class _ActiveProjectsScreenState extends State<ActiveProjectsScreen> {
   }
 
   Widget _completedCard(Map<String, dynamic> p) {
-    final projectId = p["id"] as int;
+    final projectId = _asInt(p["id"]);
     final myReview = _reviews[projectId];
     final finishedDate = p["finishedAt"] != null ? p["finishedAt"].toString().split('T')[0] : 'N/A';
 
@@ -252,7 +268,7 @@ class _ActiveProjectsScreenState extends State<ActiveProjectsScreen> {
                 children: [
                   Text("✅ You rated this client", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
-                  Text("★" * (myReview["rating"] as int), style: const TextStyle(color: Colors.amber, fontSize: 24)),
+                  Text("★" * _asInt(myReview["rating"]), style: const TextStyle(color: Colors.amber, fontSize: 24)),
                   if (myReview["comment"] != null && myReview["comment"].toString().isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(

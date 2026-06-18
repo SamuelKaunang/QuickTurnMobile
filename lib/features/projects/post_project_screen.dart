@@ -37,7 +37,7 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
   List<String> skills = [];
 
   // Selected project location for the map marker. Null until the user picks a
-  // point (tap / current location / Bandung test).
+  // point (tap / current location).
   LatLng? selectedLocation;
   bool _locating = false;
   bool _submitting = false;
@@ -314,22 +314,6 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
           ),
         ),
       ),
-      const SizedBox(height: 10),
-      SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: OutlinedButton.icon(
-          onPressed: _useBandungTestLocation,
-          icon: const Icon(Icons.science_outlined, size: 18),
-          label: Text("Use Bandung Test Location",
-            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: QTColors.textSecondary,
-            side: const BorderSide(color: QTColors.slate300),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-        ),
-      ),
     ]);
   }
 
@@ -410,13 +394,6 @@ class _PostProjectScreenState extends State<PostProjectScreen> {
     } finally {
       if (mounted) setState(() => _locating = false);
     }
-  }
-
-  /// Bandung test fallback for local fullstack testing (lat -6.9, lng 107.6).
-  void _useBandungTestLocation() {
-    if (cityCtrl.text.trim().isEmpty) cityCtrl.text = "Bandung";
-    if (addressCtrl.text.trim().isEmpty) addressCtrl.text = "Bandung Test Location";
-    _setLocation(_bandung, moveMap: true);
   }
 
   // ---------------------------------------------------------------------------

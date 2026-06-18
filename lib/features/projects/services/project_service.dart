@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 import '../models/project_model.dart';
@@ -73,14 +75,16 @@ class ProjectService {
       if (description != null && description.isNotEmpty) {
         data['description'] = description;
       }
-      if (brief != null && brief.isNotEmpty) data['brief'] = brief;
+      if (brief != null && brief.isNotEmpty) data['briefText'] = brief;
       if (budget != null) data['budget'] = budget;
       if (deadline != null && deadline.isNotEmpty) data['deadline'] = deadline;
-      if (duration != null && duration.isNotEmpty) data['duration'] = duration;
+      if (duration != null && duration.isNotEmpty) {
+        data['estimatedDuration'] = duration;
+      }
       if (complexity != null && complexity.isNotEmpty) {
         data['complexity'] = complexity;
       }
-      if (skills.isNotEmpty) data['skills'] = skills;
+      if (skills.isNotEmpty) data['requiredSkills'] = skills.join(', ');
 
       // Optional location block (matches the backend's optional fields).
       if (city != null && city.isNotEmpty) data['city'] = city;
@@ -153,21 +157,79 @@ class ProjectService {
       if (responseData is Map &&
           responseData['success'] == true &&
           responseData['data'] != null) {
-        final list = (responseData['data'] as List<dynamic>)
-            .whereType<Map<String, dynamic>>()
-            .map(Project.fromJson)
-            .toList();
-        return NearbyProjectsResult(
+        final list = _parseProjectList(responseData['data']);
+        final directResult = NearbyProjectsResult(
           success: true,
           message: responseData['message']?.toString(),
           projects: list,
+        );
+
+        if (list.isNotEmpty) return directResult;
+
+        // A deployed backend can expose /nearby before its location query or
+        // database migration is fully active. Verify an empty server result
+        // against the regular feed, whose coordinates can be filtered locally.
+        final fallback = await _getNearbyFromAllProjects(lat, lng, radiusKm);
+        return fallback.success ? fallback : directResult;
+      }
+
+      return _getNearbyFromAllProjects(
+        lat,
+        lng,
+        radiusKm,
+        originalMessage:
+            (responseData is Map ? responseData['message'] : null)?.toString(),
+      );
+    } on DioException catch (e) {
+      final isAuthError = e.response?.statusCode == 401;
+      if (isAuthError) {
+        return const NearbyProjectsResult(
+          success: false,
+          unauthenticated: true,
+          message: 'Sesi berakhir. Silakan login kembali.',
+        );
+      }
+
+      // The deployed backend may not yet expose /api/projects/nearby. The
+      // regular project feed is older and stable, so use it as a compatibility
+      // source and calculate distance on-device.
+      return _getNearbyFromAllProjects(
+        lat,
+        lng,
+        radiusKm,
+        originalMessage:
+            (e.response?.data is Map ? e.response?.data['message'] : null)
+                ?.toString(),
+      );
+    } catch (e) {
+      return NearbyProjectsResult(
+        success: false,
+        message: 'Terjadi kesalahan: $e',
+      );
+    }
+  }
+
+  Future<NearbyProjectsResult> _getNearbyFromAllProjects(
+    double lat,
+    double lng,
+    int radiusKm, {
+    String? originalMessage,
+  }) async {
+    try {
+      final response = await _client.dio.get('/api/projects');
+      final responseData = response.data;
+      if (responseData is Map && responseData['success'] == true) {
+        final projects = _parseProjectList(responseData['data']);
+        return NearbyProjectsResult(
+          success: true,
+          projects: filterNearbyProjects(projects, lat, lng, radiusKm),
         );
       }
 
       return NearbyProjectsResult(
         success: false,
-        message: (responseData is Map ? responseData['message'] : null)
-                ?.toString() ??
+        message: originalMessage ??
+            (responseData is Map ? responseData['message'] : null)?.toString() ??
             'Gagal memuat proyek terdekat',
       );
     } on DioException catch (e) {
@@ -177,19 +239,72 @@ class ProjectService {
         unauthenticated: isAuthError,
         message: isAuthError
             ? 'Sesi berakhir. Silakan login kembali.'
-            : (e.response?.data is Map
-                    ? e.response?.data['message']
-                    : null)
-                ?.toString() ??
+            : originalMessage ??
+                (e.response?.data is Map
+                        ? e.response?.data['message']
+                        : null)
+                    ?.toString() ??
                 'Terjadi kesalahan jaringan',
       );
-    } catch (e) {
+    } catch (_) {
       return NearbyProjectsResult(
         success: false,
-        message: 'Terjadi kesalahan: $e',
+        message: originalMessage ?? 'Gagal memuat proyek terdekat',
       );
     }
   }
+
+  static List<Project> _parseProjectList(dynamic data) {
+    if (data is! List) return const [];
+    return data
+        .whereType<Map>()
+        .map((item) => Project.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+  }
+
+  /// Filters projects with coordinates to [radiusKm] and orders nearest first.
+  /// Kept public so the distance fallback can be verified without HTTP calls.
+  static List<Project> filterNearbyProjects(
+    Iterable<Project> projects,
+    double lat,
+    double lng,
+    int radiusKm,
+  ) {
+    final nearby = <Project>[];
+    for (final project in projects) {
+      if (!project.hasValidLocation) continue;
+      final distance = _distanceKm(
+        lat,
+        lng,
+        project.latitude!,
+        project.longitude!,
+      );
+      if (distance <= radiusKm) {
+        nearby.add(project.withDistanceKm(distance));
+      }
+    }
+    nearby.sort((a, b) => a.distanceKm!.compareTo(b.distanceKm!));
+    return nearby;
+  }
+
+  static double _distanceKm(
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
+    const earthRadiusKm = 6371.0;
+    final dLat = _radians(lat2 - lat1);
+    final dLng = _radians(lng2 - lng1);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_radians(lat1)) *
+            math.cos(_radians(lat2)) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    return earthRadiusKm * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
+
+  static double _radians(double degrees) => degrees * math.pi / 180;
 
   /// Get all open projects
   Future<List<Map<String, dynamic>>> getAllProjects() async {

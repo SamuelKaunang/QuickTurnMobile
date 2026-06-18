@@ -11,6 +11,7 @@ void main() {
   testWidgets('QuickTurnApp builds smoke test', (WidgetTester tester) async {
     // Build the app and trigger a frame.
     await tester.pumpWidget(const QuickTurnApp());
+    await tester.pump(const Duration(milliseconds: 400));
 
     // The root widget should render a MaterialApp.
     expect(find.byType(MaterialApp), findsOneWidget);

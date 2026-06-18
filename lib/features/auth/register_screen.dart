@@ -504,6 +504,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       role: backendRole,
     );
 
+    if (!mounted) return;
     setState(() => isLoading = false);
 
     final isSuccess = res['success'] == true;

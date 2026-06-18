@@ -59,6 +59,23 @@ class Project {
   /// True when the project has usable coordinates to place a map marker.
   bool get hasValidLocation => latitude != null && longitude != null;
 
+  Project withDistanceKm(double value) => Project(
+        id: id,
+        title: title,
+        description: description,
+        category: category,
+        budget: budget,
+        deadline: deadline,
+        status: status,
+        ownerName: ownerName,
+        ownerId: ownerId,
+        city: city,
+        address: address,
+        latitude: latitude,
+        longitude: longitude,
+        distanceKm: value,
+      );
+
   /// Distance formatted for display, e.g. "1.24 km away".
   String get distanceLabel =>
       distanceKm == null ? '' : '${distanceKm!.toStringAsFixed(2)} km away';

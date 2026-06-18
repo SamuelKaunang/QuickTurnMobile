@@ -19,10 +19,10 @@ enum _LocationStatus {
   ready,
 }
 
-/// "Nearby" mode of the Browse Projects screen: resolves the user's location
-/// (or a Bandung test fallback), shows an OpenStreetMap map with markers, a
-/// radius filter, and a list of nearby projects. Self-contained so the host
-/// screen only has to drop it into its scroll view.
+/// "Nearby" mode of the Browse Projects screen: resolves the user's location,
+/// shows an OpenStreetMap map with markers, a radius filter, and a list of
+/// nearby projects. Self-contained so the host screen only has to drop it into
+/// its scroll view.
 class NearbyProjectsView extends StatefulWidget {
   const NearbyProjectsView({super.key});
 
@@ -31,7 +31,6 @@ class NearbyProjectsView extends StatefulWidget {
 }
 
 class _NearbyProjectsViewState extends State<NearbyProjectsView> {
-  static const LatLng _bandung = LatLng(-6.9, 107.6);
   static const List<int> _radiusOptions = [5, 10, 25];
 
   final ProjectService _service = ProjectService();
@@ -39,7 +38,6 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
 
   _LocationStatus _locationStatus = _LocationStatus.loadingLocation;
   LatLng? _center;
-  bool _usingTestLocation = false;
 
   int _radiusKm = 10;
 
@@ -62,7 +60,6 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
   Future<void> _useDeviceLocation() async {
     setState(() {
       _locationStatus = _LocationStatus.loadingLocation;
-      _usingTestLocation = false;
     });
 
     try {
@@ -89,25 +86,16 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
         locationSettings:
             const LocationSettings(accuracy: LocationAccuracy.high),
       );
-      _onLocationResolved(
-        LatLng(position.latitude, position.longitude),
-        isTest: false,
-      );
+      _onLocationResolved(LatLng(position.latitude, position.longitude));
     } catch (_) {
       _set(() => _locationStatus = _LocationStatus.locationError);
     }
   }
 
-  /// Bandung test fallback used for local backend testing (lat -6.9, lng 107.6).
-  void _useBandungFallback() {
-    _onLocationResolved(_bandung, isTest: true);
-  }
-
-  void _onLocationResolved(LatLng center, {required bool isTest}) {
+  void _onLocationResolved(LatLng center) {
     if (!mounted) return;
     setState(() {
       _center = center;
-      _usingTestLocation = isTest;
       _locationStatus = _LocationStatus.ready;
     });
     _moveMap();
@@ -210,7 +198,6 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_usingTestLocation) _testLocationBanner(),
         _radiusFilter(),
         const SizedBox(height: 16),
         _mapSection(),
@@ -240,10 +227,9 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
           color: QTColors.warning,
           title: 'Layanan lokasi nonaktif',
           message:
-              'Aktifkan GPS / layanan lokasi perangkat, lalu coba lagi. Atau gunakan lokasi tes Bandung.',
+              'Aktifkan GPS / layanan lokasi perangkat, lalu coba lagi.',
           primaryLabel: 'Coba Lagi',
           onPrimary: _useDeviceLocation,
-          showFallback: true,
         );
       case _LocationStatus.permissionDenied:
         return _statusCard(
@@ -254,7 +240,6 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
               'Kami butuh izin lokasi untuk menemukan proyek di sekitarmu. Beri izin lalu coba lagi.',
           primaryLabel: 'Minta Izin Lagi',
           onPrimary: _useDeviceLocation,
-          showFallback: true,
         );
       case _LocationStatus.permissionDeniedForever:
         return _statusCard(
@@ -262,10 +247,9 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
           color: QTColors.error,
           title: 'Izin lokasi diblokir',
           message:
-              'Izin lokasi diblokir permanen. Buka pengaturan aplikasi untuk mengaktifkannya, atau gunakan lokasi tes Bandung.',
+              'Izin lokasi diblokir permanen. Buka pengaturan aplikasi untuk mengaktifkannya.',
           primaryLabel: 'Buka Pengaturan',
           onPrimary: () => Geolocator.openAppSettings(),
-          showFallback: true,
         );
       case _LocationStatus.locationError:
         return _statusCard(
@@ -275,7 +259,6 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
           message: 'Terjadi kesalahan saat mengambil lokasimu. Coba lagi.',
           primaryLabel: 'Coba Lagi',
           onPrimary: _useDeviceLocation,
-          showFallback: true,
         );
       case _LocationStatus.ready:
         return const SizedBox.shrink();
@@ -290,7 +273,6 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
     bool showSpinner = false,
     String? primaryLabel,
     VoidCallback? onPrimary,
-    bool showFallback = false,
   }) {
     return Container(
       width: double.infinity,
@@ -346,70 +328,6 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
               ),
             ),
           ],
-          if (showFallback) ...[
-            const SizedBox(height: 12),
-            _bandungFallbackButton(),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _bandungFallbackButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: OutlinedButton.icon(
-        onPressed: _useBandungFallback,
-        icon: const Icon(Icons.science_outlined, size: 18),
-        label: Text(
-          'Use Bandung Test Location',
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: QTColors.textSecondary,
-          side: const BorderSide(color: QTColors.slate300),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      ),
-    );
-  }
-
-  Widget _testLocationBanner() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: QTColors.warning.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: QTColors.warning.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.science_outlined, size: 18, color: QTColors.warning),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Test mode: using Bandung location (-6.9, 107.6)',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: QTColors.warning,
-              ),
-            ),
-          ),
-          GestureDetector(
-            onTap: _useDeviceLocation,
-            child: Text(
-              'Use my location',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: QTColors.brandPrimary,
-              ),
-            ),
-          ),
         ],
       ),
     );
