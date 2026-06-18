@@ -6,6 +6,7 @@ import '../projects/browse_projects_screen.dart';
 import '../projects/active_projects_screen.dart';
 import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
+import '../notifications/widgets/notification_bell.dart';
 import '../auth/services/auth_service.dart';
 import '../projects/services/project_service.dart';
 
@@ -248,6 +249,8 @@ class _DashboardHomeState extends State<_DashboardHome> {
                         ],
                       ),
                     ),
+                    const NotificationBell(),
+                    const SizedBox(width: 10),
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -257,48 +260,20 @@ class _DashboardHomeState extends State<_DashboardHome> {
                           ),
                         );
                       },
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              gradient: const LinearGradient(
-                                colors: [QTColors.brandPrimary, QTColors.brandDark],
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.person,
-                              color: Colors.white,
-                              size: 24,
-                            ),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: const LinearGradient(
+                            colors: [QTColors.brandPrimary, QTColors.brandDark],
                           ),
-                          // Notification badge
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: QTColors.accentBeginner,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  "3",
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                     ),
                   ],

@@ -14,10 +14,10 @@ void main() async {
     );
     // Jalankan inisialisasi push notification tanpa await agar tidak mem-block startup aplikasi
     PushNotificationService().initialize().catchError((e) {
-      print("Gagal inisialisasi push notification: $e");
+      debugPrint("Gagal inisialisasi push notification: $e");
     });
   } catch (e) {
-    print("Gagal inisialisasi Firebase: $e");
+    debugPrint("Gagal inisialisasi Firebase: $e");
   }
   runApp(const QuickTurnApp());
 }
@@ -28,6 +28,7 @@ class QuickTurnApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: PushNotificationService.navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'QuickTurn',
       theme: QTTheme.lightTheme,

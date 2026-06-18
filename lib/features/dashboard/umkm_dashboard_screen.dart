@@ -6,6 +6,7 @@ import '../../core/widgets/qt_toast.dart';
 import '../projects/post_project_screen.dart';
 import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
+import '../notifications/widgets/notification_bell.dart';
 import '../auth/services/auth_service.dart';
 import '../projects/services/project_service.dart';
 
@@ -111,6 +112,8 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
                   const SizedBox(height: 4),
                   Text("Kelola proyek dan talenta", style: GoogleFonts.plusJakartaSans(fontSize: 14, color: QTColors.textSecondary)),
                 ])),
+                const NotificationBell(),
+                const SizedBox(width: 10),
                 GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen(role: "CLIENT"))),
                   child: Container(
