@@ -92,21 +92,20 @@ class PushNotificationService {
     // 4. Tangani pesan ketika aplikasi sedang aktif (Foreground)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification?.android;
 
-      if (notification != null && android != null) {
+      if (notification != null) {
         _localNotif.show(
           id: notification.hashCode,
           title: notification.title,
           body: notification.body,
-          notificationDetails: NotificationDetails(
+          notificationDetails: const NotificationDetails(
             android: AndroidNotificationDetails(
               'quickturn_push_channel',
               'QuickTurn Push Notifications',
               channelDescription: 'Channel for QuickTurn push notifications',
               importance: Importance.max,
               priority: Priority.high,
-              icon: android.smallIcon,
+              icon: '@mipmap/ic_launcher',
             ),
           ),
           // Bawa data payload supaya tap-nya bisa diarahkan ke halaman tujuan.

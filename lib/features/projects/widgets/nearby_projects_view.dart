@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/qt_colors.dart';
+import '../../../core/widgets/qt_avatar.dart';
 import '../models/project_model.dart';
 import '../services/project_service.dart';
 
@@ -699,13 +700,10 @@ class _NearbyProjectsViewState extends State<NearbyProjectsView> {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: QTColors.brandPrimary,
-                    child: Text(
-                      p.ownerName!.isNotEmpty ? p.ownerName![0].toUpperCase() : '?',
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
+                  QTAvatar(
+                    name: p.ownerName ?? '?',
+                    profileUrl: p.ownerProfilePictureUrl,
+                    size: 28,
                   ),
                   const SizedBox(width: 8),
                   Text(

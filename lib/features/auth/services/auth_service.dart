@@ -261,4 +261,39 @@ class AuthService {
       return 'DELETE-MY-ACCOUNT-7X9K';
     }
   }
+
+  /// Search users / talents
+  Future<List<Map<String, dynamic>>> searchUsers(String query, {String? role}) async {
+    try {
+      final response = await _client.dio.get(
+        '/api/users/search',
+        queryParameters: {
+          'query': query,
+          if (role != null) 'role': role,
+        },
+      );
+      final responseData = response.data;
+      if (responseData['success'] == true && responseData['data'] != null) {
+        final list = responseData['data'] as List;
+        return list.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Get public profile of another user
+  Future<Map<String, dynamic>> getPublicProfile(int userId) async {
+    try {
+      final response = await _client.dio.get('/api/users/profile/$userId');
+      final responseData = response.data;
+      if (responseData['success'] == true && responseData['data'] != null) {
+        return Map<String, dynamic>.from(responseData['data']);
+      }
+      return {};
+    } catch (_) {
+      return {};
+    }
+  }
 }

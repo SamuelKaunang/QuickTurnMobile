@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import '../../core/widgets/qt_toast.dart';
+import '../../core/widgets/qt_avatar.dart';
 import '../../core/network/websocket_manager.dart';
 import '../../core/network/dio_client.dart';
 import '../auth/services/auth_service.dart';
@@ -65,23 +66,28 @@ class _ChatScreenState extends State<ChatScreen> {
     _loadContacts();
   }
 
-  void _loadContacts() async {
-    setState(() => isContactsLoading = true);
+  void _loadContacts({bool silent = false}) async {
+    if (!silent && dynamicContacts.isEmpty) {
+      setState(() => isContactsLoading = true);
+    }
     final fetchedContacts = await ChatService().getContacts();
     
-    setState(() {
-      dynamicContacts = fetchedContacts.map((c) {
-        return {
-          "id": c['userId'], // Fixed: backend returns 'userId', not 'id'
-          "name": c['name'] ?? 'No Name',
-          "lastMessage": c['lastMessage'] ?? '',
-          "unread": c['unreadCount'] ?? 0,
-          "online": c['online'] ?? false,
-          "project": c['projectTitle'] ?? 'Project', // Fixed: backend returns 'projectTitle', not 'projectName'
-        };
-      }).toList();
-      isContactsLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        dynamicContacts = fetchedContacts.map((c) {
+          return {
+            "id": c['userId'], // Fixed: backend returns 'userId', not 'id'
+            "name": c['name'] ?? 'No Name',
+            "lastMessage": c['lastMessage'] ?? '',
+            "unread": c['unreadCount'] ?? 0,
+            "online": c['online'] ?? false,
+            "project": c['projectTitle'] ?? 'Project', // Fixed: backend returns 'projectTitle', not 'projectName'
+            "profilePictureUrl": c['profilePictureUrl'],
+          };
+        }).toList();
+        isContactsLoading = false;
+      });
+    }
 
     // Check if initialContactId is specified and try to set it active
     if (widget.initialContactId != null && activeChatIndex == null) {
@@ -114,8 +120,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _handleIncomingMessage(Map<String, dynamic> msg) {
+    if (msg['senderId'] == currentUserId) {
+      _loadContacts(silent: true);
+      return;
+    }
+
     if (dynamicContacts.isEmpty) {
-      _loadContacts();
+      _loadContacts(silent: true);
       return;
     }
 
@@ -133,12 +144,13 @@ class _ChatScreenState extends State<ChatScreen> {
         
         _scrollToBottom();
         ChatService().markAsRead(activeContactId);
+        _loadContacts(silent: true);
         return;
       }
     }
 
     // Refresh contact list or update unread counts locally
-    _loadContacts();
+    _loadContacts(silent: true);
   }
 
   void _scrollToBottom() {
@@ -404,9 +416,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   final ct = dynamicContacts[index];
                   final unread = ct["unread"] as int;
                   final online = ct["online"] == true;
-                  final initials = (ct["name"] as String).isNotEmpty
-                      ? (ct["name"] as String)[0].toUpperCase()
-                      : "?";
 
                   return GestureDetector(
                     onTap: () {
@@ -431,47 +440,12 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: Row(
                         children: [
-                          // Avatar with online indicator
-                          Stack(
-                            children: [
-                              Container(
-                                width: 52,
-                                height: 52,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  gradient: const LinearGradient(
-                                    colors: [QTColors.brandPrimary, QTColors.brandDark],
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    initials,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (online)
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: BoxDecoration(
-                                      color: QTColors.accentBeginner,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
+                          QTAvatar(
+                            name: ct["name"] as String,
+                            profileUrl: ct["profilePictureUrl"] as String?,
+                            size: 52,
+                            isOnline: online,
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           const SizedBox(width: 16),
                           // Text Details
@@ -560,9 +534,6 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildChatRoomScreen() {
     final ct = dynamicContacts[activeChatIndex!];
     final online = ct["online"] == true;
-    final initials = (ct["name"] as String).isNotEmpty
-        ? (ct["name"] as String)[0].toUpperCase()
-        : "?";
 
     return Scaffold(
       backgroundColor: QTColors.bgPrimary,
@@ -575,52 +546,18 @@ class _ChatScreenState extends State<ChatScreen> {
             setState(() {
               activeChatIndex = null;
             });
-            _loadContacts(); // Refresh unread count list
+            _loadContacts(silent: true); // Refresh unread count list
           },
           icon: const Icon(Icons.arrow_back, color: QTColors.textPrimary),
         ),
         title: Row(
           children: [
-            Stack(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: const LinearGradient(
-                      colors: [QTColors.brandPrimary, QTColors.brandDark],
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      initials,
-                      style: GoogleFonts.plusJakartaSans(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                if (online)
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: QTColors.accentBeginner,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+            QTAvatar(
+              name: ct["name"] as String,
+              profileUrl: ct["profilePictureUrl"] as String?,
+              size: 38,
+              isOnline: online,
+              borderRadius: BorderRadius.circular(12),
             ),
             const SizedBox(width: 12),
             Expanded(

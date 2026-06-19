@@ -563,6 +563,21 @@ class ProjectService {
     }
   }
 
+  /// Get finishing status (including finishingLink / file uploaded by student)
+  Future<Map<String, dynamic>> getFinishingStatus(int projectId) async {
+    try {
+      final response = await _client.dio.get('/api/projects/$projectId/finish-status');
+      return response.data;
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data?['message'] ?? 'Gagal mengambil status penyerahan',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   /// Get active system announcements
   Future<List<Map<String, dynamic>>> getAnnouncements() async {
     try {

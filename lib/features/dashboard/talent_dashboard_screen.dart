@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import '../../core/widgets/qt_glass_card.dart';
+import '../../core/widgets/qt_avatar.dart';
 import '../projects/browse_projects_screen.dart';
 import '../projects/active_projects_screen.dart';
 import '../chat/chat_screen.dart';
@@ -9,6 +10,7 @@ import '../profile/profile_screen.dart';
 import '../notifications/widgets/notification_bell.dart';
 import '../auth/services/auth_service.dart';
 import '../projects/services/project_service.dart';
+import '../../core/network/dio_client.dart';
 
 class TalentDashboardScreen extends StatefulWidget {
   const TalentDashboardScreen({super.key});
@@ -49,9 +51,18 @@ class _TalentDashboardScreenState extends State<TalentDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: currentIndex,
-        children: _pages,
+      body: PopScope(
+        canPop: currentIndex == 0,
+        onPopInvoked: (didPop) {
+          if (didPop) return;
+          setState(() {
+            currentIndex = 0;
+          });
+        },
+        child: IndexedStack(
+          index: currentIndex,
+          children: _pages,
+        ),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -119,6 +130,7 @@ class _DashboardHome extends StatefulWidget {
 class _DashboardHomeState extends State<_DashboardHome> {
   bool _isLoading = true;
   String _userName = "Talent";
+  String? _profilePictureUrl;
   int _availableCount = 0;
   int _completedCount = 0;
   int _appliedCount = 0;
@@ -140,6 +152,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
       final profileRes = await AuthService().getProfile();
       if (profileRes['success'] == true && profileRes['data'] != null) {
         _userName = profileRes['data']['nama'] ?? 'Talent';
+        _profilePictureUrl = profileRes['data']['profilePictureUrl'];
       }
 
       // 2. Fetch projects
@@ -258,22 +271,12 @@ class _DashboardHomeState extends State<_DashboardHome> {
                           MaterialPageRoute(
                             builder: (_) => const ProfileScreen(role: "TALENT"),
                           ),
-                        );
+                        ).then((_) => _loadDashboardData());
                       },
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
-                            colors: [QTColors.brandPrimary, QTColors.brandDark],
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+                      child: QTAvatar(
+                        name: _userName,
+                        profileUrl: _profilePictureUrl,
+                        size: 48,
                       ),
                     ),
                   ],
@@ -418,31 +421,7 @@ class _DashboardHomeState extends State<_DashboardHome> {
 
                 const SizedBox(height: 28),
 
-                // Category chips
-                Text(
-                  "Kategori Proyek",
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 42,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      _categoryChip("All", true),
-                      _categoryChip("IT/Web", false),
-                      _categoryChip("Desain", false),
-                      _categoryChip("Marketing", false),
-                      _categoryChip("Video", false),
-                      _categoryChip("Writing", false),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 28),
+                 const SizedBox(height: 8),
 
                 // Stats Grid
                 Row(
@@ -583,32 +562,6 @@ class _DashboardHomeState extends State<_DashboardHome> {
     );
   }
 
-  Widget _categoryChip(String label, bool isSelected) {
-    return Container(
-      margin: const EdgeInsets.only(right: 10),
-      child: FilterChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (_) {},
-        selectedColor: QTColors.brandPrimary,
-        checkmarkColor: Colors.white,
-        labelStyle: GoogleFonts.plusJakartaSans(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: isSelected ? Colors.white : QTColors.textSecondary,
-        ),
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(999),
-          side: BorderSide(
-            color: isSelected ? QTColors.brandPrimary : QTColors.slate200,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      ),
-    );
-  }
-
   Widget _statCard(String label, String value, IconData icon, Color color) {
     return QTGlassCard(
       padding: const EdgeInsets.all(16),
@@ -673,22 +626,6 @@ class _DashboardHomeState extends State<_DashboardHome> {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: QTColors.info.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  category,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: QTColors.info,
-                  ),
-                ),
-              ),
-              const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -786,4 +723,5 @@ class _DashboardHomeState extends State<_DashboardHome> {
       ],
     );
   }
+
 }

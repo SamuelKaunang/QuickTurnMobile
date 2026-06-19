@@ -3,12 +3,20 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import '../../core/widgets/qt_glass_card.dart';
 import '../../core/widgets/qt_toast.dart';
+import '../../core/widgets/qt_avatar.dart';
 import '../projects/post_project_screen.dart';
 import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
 import '../notifications/widgets/notification_bell.dart';
 import '../auth/services/auth_service.dart';
 import '../projects/services/project_service.dart';
+import 'client_search_user_screen.dart';
+import 'client_my_projects_screen.dart';
+import '../../core/network/dio_client.dart';
+import '../chat/chat_screen.dart'; // for FullScreenImageViewer
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 class UmkmDashboardScreen extends StatefulWidget {
   const UmkmDashboardScreen({super.key});
@@ -20,6 +28,8 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
   int currentIndex = 0;
   bool _isLoading = true;
   String _umkmName = "UMKM";
+  String? _profilePictureUrl;
+  int? initialChatContactId;
   List<Map<String, dynamic>> _myProjects = [];
 
   @override
@@ -36,6 +46,7 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
       final profileRes = await AuthService().getProfile();
       if (profileRes['success'] == true && profileRes['data'] != null) {
         _umkmName = profileRes['data']['nama'] ?? 'UMKM';
+        _profilePictureUrl = profileRes['data']['profilePictureUrl'];
       }
 
       final projects = await ProjectService().getMyProjects();
@@ -53,24 +64,85 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
     }
   }
 
-  @override
+  List<String> _extractUrls(String text) {
+    final RegExp urlRegExp = RegExp(
+      r'(https?:\/\/[^\s\)\(]+|\/api\/chat\/download\/[^\s\)\(]+)',
+      caseSensitive: false,
+    );
+    final Iterable<RegExpMatch> matches = urlRegExp.allMatches(text);
+    return matches.map((match) => match.group(0)!).toList();
+  }
+
+  Future<void> _launchURL(String urlString) async {
+    final String finalUrl = urlString.startsWith('http')
+        ? urlString
+        : '${DioClient.baseUrl}${urlString.startsWith('/') ? '' : '/'}$urlString';
+    final Uri uri = Uri.parse(finalUrl);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch $finalUrl';
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+      Clipboard.setData(ClipboardData(text: finalUrl));
+      if (mounted) {
+        QTToast.show(
+          context,
+          title: "Tautan Disalin",
+          message: "Tidak dapat membuka tautan secara langsung. Tautan disalin ke papan klip.",
+          type: QTToastType.warning,
+        );
+      }
+    }
+  }
+
+    @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: currentIndex,
-        children: [
-          _dashboardHome(),
-          const ChatScreen(),
-        ],
+      body: PopScope(
+        canPop: currentIndex == 0,
+        onPopInvoked: (didPop) {
+          if (didPop) return;
+          setState(() {
+            currentIndex = 0;
+          });
+        },
+        child: IndexedStack(
+          index: currentIndex,
+          children: [
+            _dashboardHome(),
+            ClientSearchUserScreen(onNavigateToChat: (contactId) {
+              setState(() {
+                initialChatContactId = contactId;
+                currentIndex = 3;
+              });
+            }),
+            const ClientMyProjectsScreen(),
+            ChatScreen(
+              key: initialChatContactId != null ? ValueKey(initialChatContactId) : null,
+              initialContactId: initialChatContactId,
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
-        onTap: (i) => setState(() => currentIndex = i),
+        onTap: (i) => setState(() {
+          currentIndex = i;
+          if (i != 3) {
+            initialChatContactId = null;
+          }
+        }),
         selectedItemColor: QTColors.brandPrimary,
         unselectedItemColor: QTColors.slate400,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Messages'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Cari Talenta'),
+          BottomNavigationBarItem(icon: Icon(Icons.folder_outlined), label: 'Proyek Saya'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Pesan'),
         ],
       ),
     );
@@ -115,11 +187,11 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
                 const NotificationBell(),
                 const SizedBox(width: 10),
                 GestureDetector(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen(role: "CLIENT"))),
-                  child: Container(
-                    width: 48, height: 48,
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), gradient: const LinearGradient(colors: [QTColors.brandPrimary, QTColors.brandDark])),
-                    child: const Icon(Icons.store, color: Colors.white, size: 24),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen(role: "CLIENT"))).then((_) => _loadDashboardData()),
+                  child: QTAvatar(
+                    name: _umkmName,
+                    profileUrl: _profilePictureUrl,
+                    size: 48,
                   ),
                 ),
               ]),
@@ -268,7 +340,9 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
   void _showProjectAction(Map<String, dynamic> p) {
     final status = _status(p);
     bool isLoadingReview = (status == "CLOSED");
+    bool isLoadingSubmission = (status == "DONE" || status == "CLOSED");
     Map<String, dynamic>? myReview;
+    Map<String, dynamic>? submissionData;
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -278,13 +352,29 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
           builder: (context, setModalState) {
             if (isLoadingReview) {
               ProjectService().getMyReview(p['id']).then((res) {
-                setModalState(() {
-                  if (res['success'] == true && res['data'] != null) {
-                    myReview = res['data'];
-                  }
-                  isLoadingReview = false;
-                });
+                if (mounted) {
+                  setModalState(() {
+                    if (res['success'] == true && res['data'] != null) {
+                      myReview = res['data'];
+                    }
+                    isLoadingReview = false;
+                  });
+                }
               });
+            }
+            if (isLoadingSubmission) {
+              ProjectService().getFinishingStatus(p['id']).then((res) {
+                if (mounted) {
+                  setModalState(() {
+                    if (res['success'] == true && res['data'] != null) {
+                      submissionData = res['data'];
+                    }
+                    isLoadingSubmission = false;
+                  });
+                }
+              });
+            }
+            if (isLoadingReview || isLoadingSubmission) {
               return const SizedBox(
                 height: 200,
                 child: Center(
@@ -293,94 +383,217 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
               );
             }
 
+            final String submissionText = submissionData != null ? (submissionData!['finishingLink'] ?? '') : '';
+            final urls = _extractUrls(submissionText);
+
             return Padding(
               padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).padding.bottom + 24),
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: QTColors.slate300, borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 20),
-                Text(p["title"] ?? "", style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(color: QTColors.statusColor(status).withOpacity(0.1), borderRadius: BorderRadius.circular(999)),
-                  child: Text(status, style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: QTColors.statusColor(status)))),
-                const SizedBox(height: 20),
-                Text("Budget: Rp ${_formatBudgetDouble(p["budget"])}", style: GoogleFonts.plusJakartaSans(color: QTColors.textSecondary)),
-                const SizedBox(height: 24),
-                if (status == "OPEN") ...[
-                  SizedBox(width: double.infinity, child: ElevatedButton.icon(
-                    onPressed: () { Navigator.pop(ctx); _showApplicants(p); },
-                    icon: const Icon(Icons.people), label: const Text("View Applicants"))),
-                ] else if (status == "ONGOING") ...[
-                  Container(width: double.infinity, padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: QTColors.info.withOpacity(0.08), borderRadius: BorderRadius.circular(16)),
-                    child: Row(children: [
-                      Icon(Icons.hourglass_top, color: QTColors.info),
-                      const SizedBox(width: 12),
-                      Text("Waiting for Submission", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: QTColors.info)),
-                    ])),
-                ] else if (status == "DONE") ...[
-                  SizedBox(width: double.infinity, child: ElevatedButton.icon(
-                    onPressed: () async {
-                      final res = await ProjectService().confirmFinishing(p['id']);
-                      if (res['success'] == true) {
-                        QTToast.show(
-                          context,
-                          title: "Proyek Selesai! 🎉",
-                          message: "Pekerjaan proyek berhasil disetujui dan diselesaikan.",
-                          type: QTToastType.success,
-                        );
-                        Navigator.pop(ctx);
-                        _loadDashboardData();
-                        // FR-05.1: after closing the project the UMKM must rate
-                        // the talent — flow straight into the rating dialog so
-                        // the review step isn't left stranded behind a re-tap.
-                        _showRateDialog(p);
-                      } else {
-                        QTToast.show(
-                          context,
-                          title: "Gagal Mengonfirmasi",
-                          message: res['message'] ?? "Gagal mengonfirmasi penyelesaian proyek.",
-                          type: QTToastType.error,
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.check), label: const Text("Approve and Complete"))),
-                ] else if (status == "CLOSED") ...[
-                  if (myReview == null)
-                    SizedBox(width: double.infinity, child: ElevatedButton.icon(
-                      onPressed: () { Navigator.pop(ctx); _showRateDialog(p); },
-                      style: ElevatedButton.styleFrom(backgroundColor: QTColors.warning, foregroundColor: Colors.black),
-                      icon: const Icon(Icons.star), label: const Text("Rate Talent")))
-                  else
-                    Container(width: double.infinity, padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: QTColors.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
-                      child: Column(children: [
-                        Text("You rated this talent", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 8),
-                        Text("★" * _asInt(myReview!["rating"]), style: const TextStyle(color: Colors.amber, fontSize: 24)),
-                        if (myReview!["comment"] != null && myReview!["comment"].toString().isNotEmpty) ...[
-                          const SizedBox(height: 8),
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: QTColors.slate300, borderRadius: BorderRadius.circular(2)))),
+                  const SizedBox(height: 20),
+                  Text(p["title"] ?? "", style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(color: QTColors.statusColor(status).withOpacity(0.1), borderRadius: BorderRadius.circular(999)),
+                    child: Text(status, style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: QTColors.statusColor(status)))),
+                  const SizedBox(height: 20),
+                  Text("Budget: Rp ${_formatBudgetDouble(p["budget"])}", style: GoogleFonts.plusJakartaSans(color: QTColors.textSecondary)),
+                  const SizedBox(height: 24),
+                  if (status == "DONE" || status == "CLOSED") ...[
+                    Text(
+                      "Hasil Penyerahan Pekerjaan",
+                      style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold, color: QTColors.textPrimary),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: QTColors.brandPrimary.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: QTColors.brandPrimary.withOpacity(0.1)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            '"${myReview!["comment"]}"',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontStyle: FontStyle.italic,
-                              color: QTColors.textSecondary,
-                            ),
-                            textAlign: TextAlign.center,
+                            submissionText.isNotEmpty ? submissionText : "Tidak ada detail tautan.",
+                            style: GoogleFonts.plusJakartaSans(fontSize: 13),
                           ),
-                        ]
+                          if (urls.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            ...urls.map((url) {
+                              final isImage = url.toLowerCase().contains('.png') ||
+                                  url.toLowerCase().contains('.jpg') ||
+                                  url.toLowerCase().contains('.jpeg') ||
+                                  url.toLowerCase().contains('.webp') ||
+                                  url.contains('/api/chat/download/');
+                              if (isImage) {
+                                final String finalUrl = url.startsWith('http')
+                                    ? url
+                                    : '${DioClient.baseUrl}${url.startsWith('/') ? '' : '/'}$url';
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => FullScreenImageViewer(imagePath: url),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.only(top: 6),
+                                    height: 100,
+                                    width: 160,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: QTColors.slate300),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        finalUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => Container(
+                                          color: Colors.grey[200],
+                                          child: const Icon(Icons.broken_image, color: Colors.grey),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                return GestureDetector(
+                                  onTap: () => _launchURL(url),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(top: 6),
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: QTColors.slate300),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.attachment, color: QTColors.brandPrimary, size: 16),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            url,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 12,
+                                              color: QTColors.brandPrimary,
+                                              decoration: TextDecoration.underline,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.open_in_new, size: 16, color: QTColors.brandPrimary),
+                                          onPressed: () => _launchURL(url),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.copy, size: 16),
+                                          onPressed: () {
+                                            final String finalUrl = url.startsWith('http')
+                                                ? url
+                                                : '${DioClient.baseUrl}${url.startsWith('/') ? '' : '/'}$url';
+                                            Clipboard.setData(ClipboardData(text: finalUrl));
+                                            QTToast.show(
+                                              context,
+                                              title: "Tautan Disalin",
+                                              message: "Tautan berhasil disalin.",
+                                              type: QTToastType.success,
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
+                            }).toList(),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (status == "OPEN") ...[
+                    SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                      onPressed: () { Navigator.pop(ctx); _showApplicants(p); },
+                      icon: const Icon(Icons.people), label: const Text("View Applicants"))),
+                  ] else if (status == "ONGOING") ...[
+                    Container(width: double.infinity, padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(color: QTColors.info.withOpacity(0.08), borderRadius: BorderRadius.circular(16)),
+                      child: Row(children: [
+                        Icon(Icons.hourglass_top, color: QTColors.info),
+                        const SizedBox(width: 12),
+                        Text("Waiting for Submission", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: QTColors.info)),
                       ])),
-                ] else if (status == "OVERDUE") ...[
-                  Container(width: double.infinity, padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: QTColors.error.withOpacity(0.08), borderRadius: BorderRadius.circular(16), border: Border.all(color: QTColors.error.withOpacity(0.3))),
-                    child: Row(children: [
-                      const Icon(Icons.warning_amber_rounded, color: QTColors.error),
-                      const SizedBox(width: 12),
-                      Expanded(child: Text("Proyek ini melewati batas waktu. Hanya dapat dilihat.", style: GoogleFonts.plusJakartaSans(fontSize: 13, color: QTColors.error))),
-                    ])),
-                ],
-              ]),
+                  ] else if (status == "DONE") ...[
+                    SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final res = await ProjectService().confirmFinishing(p['id']);
+                        if (res['success'] == true) {
+                          QTToast.show(
+                            context,
+                            title: "Proyek Selesai! 🎉",
+                            message: "Pekerjaan proyek berhasil disetujui dan diselesaikan.",
+                            type: QTToastType.success,
+                          );
+                          Navigator.pop(ctx);
+                          _loadDashboardData();
+                          _showRateDialog(p);
+                        } else {
+                          QTToast.show(
+                            context,
+                            title: "Gagal Mengonfirmasi",
+                            message: res['message'] ?? "Gagal mengonfirmasi penyelesaian proyek.",
+                            type: QTToastType.error,
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.check), label: const Text("Approve and Complete"))),
+                  ] else if (status == "CLOSED") ...[
+                    if (myReview == null)
+                      SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                        onPressed: () { Navigator.pop(ctx); _showRateDialog(p); },
+                        style: ElevatedButton.styleFrom(backgroundColor: QTColors.warning, foregroundColor: Colors.black),
+                        icon: const Icon(Icons.star), label: const Text("Rate Talent")))
+                    else
+                      Container(width: double.infinity, padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: QTColors.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                        child: Column(children: [
+                          Text("You rated this talent", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+                          Text("★" * _asInt(myReview!["rating"]), style: const TextStyle(color: Colors.amber, fontSize: 24)),
+                          if (myReview!["comment"] != null && myReview!["comment"].toString().isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              '"${myReview!["comment"]}"',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                                color: QTColors.textSecondary,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ]
+                        ])),
+                  ] else if (status == "OVERDUE") ...[
+                    Container(width: double.infinity, padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(color: QTColors.error.withOpacity(0.08), borderRadius: BorderRadius.circular(16), border: Border.all(color: QTColors.error.withOpacity(0.3))),
+                      child: Row(children: [
+                        const Icon(Icons.warning_amber_rounded, color: QTColors.error),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text("Proyek ini melewati batas waktu. Hanya dapat dilihat.", style: GoogleFonts.plusJakartaSans(fontSize: 13, color: QTColors.error))),
+                      ])),
+                  ],
+                ]),
+              ),
             );
           }
         );
@@ -436,7 +649,11 @@ class _UmkmDashboardScreenState extends State<UmkmDashboardScreen> {
                   decoration: BoxDecoration(color: QTColors.bgTertiary, borderRadius: BorderRadius.circular(20)),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      CircleAvatar(backgroundColor: QTColors.brandPrimary, child: Text((a["studentName"] ?? "A")[0], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                      QTAvatar(
+                        name: a["studentName"] ?? "A",
+                        profileUrl: a["studentProfilePictureUrl"],
+                        size: 40,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(a["studentName"] ?? "Anonymous", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),

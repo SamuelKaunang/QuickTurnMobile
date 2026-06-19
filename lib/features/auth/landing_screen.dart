@@ -199,7 +199,7 @@ class _LandingScreenState extends State<LandingScreen>
                         const SizedBox(height: 60),
 
                         // Logo
-                        _buildLogo(),
+                        _buildLogo(horizontal: true),
 
                         const SizedBox(height: 48),
 
@@ -313,36 +313,35 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
-  Widget _buildLogo() {
+  Widget _buildLogo({bool horizontal = false}) {
+    if (horizontal) {
+      return Image.asset(
+        "assets/images/1767079315838.png", // Wide logo banner
+        height: 60,
+        fit: BoxFit.contain,
+      );
+    }
     return Container(
-      width: 80,
-      height: 80,
+      width: 90,
+      height: 90,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            QTColors.brandPrimary,
-            QTColors.brandDark,
-          ],
-        ),
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
         boxShadow: [
           BoxShadow(
-            color: QTColors.brandPrimary.withOpacity(0.4),
-            blurRadius: 30,
-            spreadRadius: 5,
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Center(
-        child: Text(
-          "Q",
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 40,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-          ),
+      padding: const EdgeInsets.all(12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Image.asset(
+          "assets/images/1767079251996.png", // Square logo icon
+          fit: BoxFit.contain,
         ),
       ),
     );

@@ -14,6 +14,7 @@ class Project {
   final String? status;
   final String? ownerName;
   final int? ownerId;
+  final String? ownerProfilePictureUrl;
   final String? city;
   final String? address;
   final double? latitude;
@@ -30,6 +31,7 @@ class Project {
     this.status,
     this.ownerName,
     this.ownerId,
+    this.ownerProfilePictureUrl,
     this.city,
     this.address,
     this.latitude,
@@ -46,8 +48,9 @@ class Project {
       budget: _toDouble(json['budget']),
       deadline: json['deadline']?.toString(),
       status: json['status']?.toString(),
-      ownerName: json['ownerName']?.toString(),
-      ownerId: _toInt(json['ownerId']),
+      ownerName: json['ownerName']?.toString() ?? json['owner']?['nama']?.toString(),
+      ownerId: _toInt(json['ownerId']) ?? _toInt(json['owner']?['id']),
+      ownerProfilePictureUrl: json['ownerProfilePictureUrl']?.toString() ?? json['owner']?['profilePictureUrl']?.toString(),
       city: json['city']?.toString(),
       address: json['address']?.toString(),
       latitude: _toDouble(json['latitude']),
@@ -69,6 +72,7 @@ class Project {
         status: status,
         ownerName: ownerName,
         ownerId: ownerId,
+        ownerProfilePictureUrl: ownerProfilePictureUrl,
         city: city,
         address: address,
         latitude: latitude,

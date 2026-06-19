@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import '../../core/widgets/qt_toast.dart';
+import '../../core/widgets/qt_avatar.dart';
 import 'services/project_service.dart';
 import 'widgets/nearby_projects_view.dart';
 
@@ -220,8 +221,11 @@ class _BrowseProjectsScreenState extends State<BrowseProjectsScreen> {
           ]),
           const SizedBox(height: 16),
           Row(children: [
-            CircleAvatar(radius: 14, backgroundColor: QTColors.brandPrimary,
-              child: Text(ownerName.toString().isNotEmpty ? ownerName.toString()[0] : "?", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
+            QTAvatar(
+              name: ownerName.toString(),
+              profileUrl: p["owner"]?["profilePictureUrl"],
+              size: 28,
+            ),
             const SizedBox(width: 8),
             Text(ownerName.toString(), style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(width: 6),
@@ -275,7 +279,11 @@ class _BrowseProjectsScreenState extends State<BrowseProjectsScreen> {
           ],
           Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: QTColors.bgTertiary, borderRadius: BorderRadius.circular(16)),
             child: Row(children: [
-              CircleAvatar(backgroundColor: QTColors.brandPrimary, child: Text(ownerName.toString().isNotEmpty ? ownerName.toString()[0] : "?", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              QTAvatar(
+                name: ownerName.toString(),
+                profileUrl: p["owner"]?["profilePictureUrl"],
+                size: 40,
+              ),
               const SizedBox(width: 12),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(ownerName.toString(), style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),

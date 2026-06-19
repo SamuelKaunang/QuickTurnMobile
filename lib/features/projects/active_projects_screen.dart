@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../core/theme/qt_colors.dart';
 import '../../core/widgets/qt_toast.dart';
 import '../projects/services/project_service.dart';
+import '../chat/services/chat_service.dart';
 
 class ActiveProjectsScreen extends StatefulWidget {
   const ActiveProjectsScreen({super.key});
@@ -376,53 +379,165 @@ class _ActiveProjectsScreenState extends State<ActiveProjectsScreen> {
 
   void _showSubmit(Map<String, dynamic> p) {
     final linkCtrl = TextEditingController();
+    File? selectedFile;
+    bool isUploading = false;
+
     showDialog(
       context: context,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: Text("Submit Work", style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w700))),
-                    IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                    Row(
+                      children: [
+                        Expanded(child: Text("Submit Work", style: GoogleFonts.plusJakartaSans(fontSize: 22, fontWeight: FontWeight.w700))),
+                        IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: linkCtrl,
+                      decoration: const InputDecoration(
+                        hintText: "Drive / GitHub / Figma link",
+                        labelText: "Link Project",
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            selectedFile == null
+                                ? "Belum ada berkas lampiran"
+                                : selectedFile!.path.split(Platform.pathSeparator).last,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              color: selectedFile == null ? QTColors.textMuted : QTColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (selectedFile != null)
+                          IconButton(
+                            onPressed: () => setDialogState(() => selectedFile = null),
+                            icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          ),
+                        TextButton.icon(
+                          onPressed: isUploading
+                              ? null
+                              : () async {
+                                  final result = await FilePicker.platform.pickFiles(
+                                    type: FileType.any,
+                                  );
+                                  if (result != null && result.files.single.path != null) {
+                                    setDialogState(() {
+                                      selectedFile = File(result.files.single.path!);
+                                    });
+                                  }
+                                },
+                          icon: const Icon(Icons.attach_file, size: 18),
+                          label: Text(selectedFile == null ? "Pilih Berkas" : "Ganti"),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isUploading
+                            ? null
+                            : () async {
+                                final linkText = linkCtrl.text.trim();
+                                if (linkText.isEmpty && selectedFile == null) {
+                                  QTToast.show(
+                                    context,
+                                    title: "Validasi Gagal",
+                                    message: "Harap masukkan link project atau pilih berkas lampiran.",
+                                    type: QTToastType.warning,
+                                  );
+                                  return;
+                                }
+
+                                setDialogState(() => isUploading = true);
+
+                                String finalLink = linkText;
+                                try {
+                                  if (selectedFile != null) {
+                                    final ownerId = p['owner'] != null ? _asInt(p['owner']['id']) : 0;
+                                    if (ownerId == 0) {
+                                      throw Exception("ID pemilik proyek tidak ditemukan.");
+                                    }
+                                    
+                                    // Upload file via ChatService upload API
+                                    final uploadRes = await ChatService().uploadAttachment(selectedFile!.path, ownerId);
+                                    if (uploadRes['success'] == true && uploadRes['url'] != null) {
+                                      final fileUrl = uploadRes['url'] as String;
+                                      if (linkText.isNotEmpty) {
+                                        finalLink = "$linkText (Lampiran: $fileUrl)";
+                                      } else {
+                                        finalLink = fileUrl;
+                                      }
+                                    } else {
+                                      throw Exception(uploadRes['message'] ?? "Gagal mengunggah berkas.");
+                                    }
+                                  }
+
+                                  final res = await ProjectService().submitFinishing(
+                                    projectId: p['id'],
+                                    finishingLink: finalLink,
+                                  );
+
+                                  if (res['success'] == true) {
+                                    QTToast.show(
+                                      context,
+                                      title: "Sukses! 🎉",
+                                      message: "Pekerjaan berhasil dikirimkan.",
+                                      type: QTToastType.success,
+                                    );
+                                    Navigator.pop(context);
+                                    _loadProjects();
+                                  } else {
+                                    QTToast.show(
+                                      context,
+                                      title: "Gagal Kirim",
+                                      message: res['message'] ?? "Terjadi kesalahan.",
+                                      type: QTToastType.error,
+                                    );
+                                  }
+                                } catch (e) {
+                                  QTToast.show(
+                                    context,
+                                    title: "Gagal Mengunggah",
+                                    message: e.toString().replaceAll("Exception: ", ""),
+                                    type: QTToastType.error,
+                                  );
+                                } finally {
+                                  setDialogState(() => isUploading = false);
+                                }
+                              },
+                        child: isUploading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text("Submit Work"),
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                TextField(controller: linkCtrl, decoration: const InputDecoration(hintText: "Drive / GitHub / Figma link")),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (linkCtrl.text.trim().isEmpty) {
-                        QTToast.show(context, title: "Validasi Gagal", message: "Link tidak boleh kosong.", type: QTToastType.warning);
-                        return;
-                      }
-                      final res = await ProjectService().submitFinishing(
-                        projectId: p['id'],
-                        finishingLink: linkCtrl.text.trim(),
-                      );
-                      if (res['success'] == true) {
-                        QTToast.show(context, title: "Sukses! 🎉", message: "Pekerjaan berhasil dikirimkan.", type: QTToastType.success);
-                        Navigator.pop(context);
-                        _loadProjects();
-                      } else {
-                        QTToast.show(context, title: "Gagal Kirim", message: res['message'] ?? "Terjadi kesalahan.", type: QTToastType.error);
-                      }
-                    },
-                    child: const Text("Submit Work"),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
