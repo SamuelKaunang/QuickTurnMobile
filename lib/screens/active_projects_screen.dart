@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../features/projects/services/project_service.dart';
 import '../core/widgets/qt_toast.dart';
 
 class ActiveProjectsScreen
@@ -893,114 +895,236 @@ class _ActiveProjectsScreenState
   void _showBriefModal(
       BuildContext context,
       Map<String, dynamic> p,
+      ) async {
+    // Show a loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(
+        child: CircularProgressIndicator(color: Colors.pink),
+      ),
+    );
+
+    try {
+      final res = await ProjectService().getProjectBrief(p['id'] as int);
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      if (res['success'] == true && res['data'] != null) {
+        final briefData = res['data'];
+        _showActualBriefDialog(context, p, Map<String, dynamic>.from(briefData));
+      } else {
+        QTToast.show(context, title: "Gagal memuat brief", message: res['message'] ?? "Terjadi kesalahan.", type: QTToastType.error);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+      QTToast.show(context, title: "Gagal memuat brief", message: e.toString(), type: QTToastType.error);
+    }
+  }
+
+  void _showActualBriefDialog(
+      BuildContext context,
+      Map<String, dynamic> p,
+      Map<String, dynamic> briefData,
       ) {
+    final briefText = briefData["briefText"]?.toString() ?? "No brief details provided by the client.";
+    final attachmentUrl = briefData["attachmentUrl"]?.toString();
+    final attachmentName = briefData["attachmentName"]?.toString() ?? "Project Attachment";
+    final ownerName = briefData["ownerName"]?.toString() ?? "Client";
+    final ownerEmail = briefData["ownerEmail"]?.toString() ?? "";
 
     showDialog(
       context: context,
-
       builder: (_) {
-
         return Dialog(
-
-          shape:
-          RoundedRectangleBorder(
-            borderRadius:
-            BorderRadius.circular(
-                28),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
           ),
-
           child: Padding(
-            padding:
-            const EdgeInsets.all(
-                28),
-
-            child: Column(
-              mainAxisSize:
-              MainAxisSize.min,
-
-              crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
-
-              children: [
-
-                Row(
-                  children: [
-
-                    Expanded(
-                      child: Text(
-                        "Project Brief",
-
-                        style:
-                        GoogleFonts.plusJakartaSans(
-                          fontSize:
-                          28,
-
-                          fontWeight:
-                          FontWeight
-                              .bold,
+            padding: const EdgeInsets.all(28),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "Project Brief",
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    p["title"] ?? briefData["projectTitle"] ?? "",
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.pink,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Brief / Instructions:",
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfff8fafc),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      briefText,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ),
+                  if (attachmentUrl != null && attachmentUrl.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Text(
+                      "Attachment:",
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () async {
+                        try {
+                          final uri = Uri.parse(attachmentUrl);
+                          final canLaunch = await canLaunchUrl(uri);
+                          if (!context.mounted) return;
+                          if (canLaunch) {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          } else {
+                            QTToast.show(context, title: "Gagal membuka file", message: "Tidak dapat membuka url tautan.", type: QTToastType.warning);
+                          }
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          QTToast.show(context, title: "Gagal membuka file", message: e.toString(), type: QTToastType.error);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.pink.withOpacity(0.05),
+                          border: Border.all(color: Colors.pink.withOpacity(0.2)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.description, color: Colors.pink),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    attachmentName,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: Colors.pink,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    "Tap to download / open",
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.open_in_new, size: 18, color: Colors.pink),
+                          ],
                         ),
                       ),
                     ),
-
-                    IconButton(
-                      onPressed: () {
-                        Navigator.pop(
-                            context);
-                      },
-
-                      icon:
-                      const Icon(
-                        Icons.close,
-                      ),
-                    ),
                   ],
-                ),
-
-                const SizedBox(
-                    height: 20),
-
-                Text(
-                  p["title"],
-
-                  style:
-                  const TextStyle(
-                    fontWeight:
-                    FontWeight
-                        .bold,
-
-                    fontSize: 20,
+                  const SizedBox(height: 20),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(Icons.business, size: 18, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Client: $ownerName",
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                            if (ownerEmail.isNotEmpty)
+                              Text(
+                                ownerEmail,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-
-                const SizedBox(
-                    height: 16),
-
-                const Text(
-                  "Project attachments and requirements would appear here.",
-                ),
-
-                const SizedBox(
-                    height: 30),
-
-                SizedBox(
-                  width:
-                  double.infinity,
-
-                  child:
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(
-                          context);
-                    },
-
-                    child:
-                    const Text(
-                      "Close",
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[200],
+                        foregroundColor: Colors.grey[800],
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text("Close"),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
