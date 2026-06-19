@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import '../dashboard/talent_dashboard_screen.dart';
 import '../dashboard/umkm_dashboard_screen.dart';
+import '../../core/services/notification_service.dart';
 import 'services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -751,6 +752,9 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = false);
 
     if (res['success'] == true) {
+      // Register device for FCM Push Notifications
+      NotificationService().registerDevice();
+
       final role = res['role'];
       if (role == 'UMKM' || role == 'CLIENT') {
         Navigator.pushReplacement(

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
+import '../../core/network/dio_client.dart';
+import '../../core/services/notification_service.dart';
+import '../dashboard/umkm_dashboard_screen.dart';
+import '../dashboard/talent_dashboard_screen.dart';
+import 'services/auth_service.dart';
 import 'login_screen.dart';
 import 'select_role_screen.dart';
 
@@ -17,6 +22,7 @@ class _LandingScreenState extends State<LandingScreen>
   late AnimationController _slideController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
+  bool _checkingAuth = true;
 
   @override
   void initState() {
@@ -42,10 +48,47 @@ class _LandingScreenState extends State<LandingScreen>
       curve: Curves.easeOutCubic,
     ));
 
-    _fadeController.forward();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      _slideController.forward();
-    });
+    _checkAuth();
+  }
+
+  void _checkAuth() async {
+    try {
+      final token = await DioClient().getToken();
+      if (token != null) {
+        final profileRes = await AuthService().getProfile();
+        if (profileRes['success'] == true && profileRes['data'] != null) {
+          // Register device for FCM Push Notifications
+          NotificationService().registerDevice();
+          
+          final role = await DioClient().getUserRole() ?? profileRes['data']['role'] ?? 'MAHASISWA';
+          if (!mounted) return;
+          if (role == 'UMKM' || role == 'CLIENT') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const UmkmDashboardScreen()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const TalentDashboardScreen()),
+            );
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      print('Auto login error: $e');
+    }
+
+    if (mounted) {
+      setState(() {
+        _checkingAuth = false;
+      });
+      _fadeController.forward();
+      Future.delayed(const Duration(milliseconds: 300), () {
+        _slideController.forward();
+      });
+    }
   }
 
   @override
@@ -57,6 +100,37 @@ class _LandingScreenState extends State<LandingScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingAuth) {
+      return Scaffold(
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                QTColors.darkBase,
+                QTColors.darkSurface,
+                Color(0xFF1A0A1E),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildLogo(),
+                const SizedBox(height: 32),
+                const CircularProgressIndicator(
+                  color: QTColors.brandPrimary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       body: Container(
         width: double.infinity,
