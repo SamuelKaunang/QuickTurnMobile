@@ -1,9 +1,14 @@
 import 'package:dio/dio.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/services/push_notification_service.dart';
 
 class AuthService {
   final DioClient _client = DioClient();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email'],
+    serverClientId: '635708064928-v3c58k8aunkmjcdt3taq3b2fe2cs9iih.apps.googleusercontent.com',
+  );
 
   /// Login user and save the JWT token & role
   Future<Map<String, dynamic>> login({
@@ -294,6 +299,77 @@ class AuthService {
       return {};
     } catch (_) {
       return {};
+    }
+  }
+
+  /// Login via Google
+  Future<Map<String, dynamic>> loginWithGoogle() async {
+    try {
+      // Disconnect previous session to allow account selection dialog
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        return {
+          'success': false,
+          'message': 'Login dibatalkan oleh pengguna',
+        };
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        return {
+          'success': false,
+          'message': 'Gagal memperoleh token autentikasi Google',
+        };
+      }
+
+      // Send idToken to Spring Boot Backend
+      final response = await _client.dio.post(
+        '/api/auth/google',
+        data: {
+          'idToken': idToken,
+        },
+      );
+
+      final responseData = response.data;
+      if (responseData['success'] == true && responseData['data'] != null) {
+        final data = responseData['data'];
+        final String token = data['accessToken'];
+        final String role = data['role'] ?? 'MAHASISWA';
+        
+        await _client.saveToken(token);
+        await _client.saveUserRole(role);
+        
+        PushNotificationService().registerDeviceToken();
+        
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Login Google berhasil',
+          'role': role,
+          'data': data,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Login Google gagal',
+        };
+      }
+    } on DioException catch (e) {
+      final errorMsg = e.response?.data?['message'] ?? 'Terjadi kesalahan jaringan ke server';
+      return {
+        'success': false,
+        'message': errorMsg,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Autentikasi Google gagal: $e',
+      };
     }
   }
 }

@@ -343,7 +343,7 @@ class _LoginScreenState extends State<LoginScreen> {
             width: double.infinity,
             height: 54,
             child: OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: isLoading ? null : _loginWithGoogle,
               icon: const Icon(Icons.g_mobiledata, size: 28),
               label: Text(
                 "Masuk dengan Google",
@@ -795,6 +795,43 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         title: "Login Gagal 🔑",
         message: res['message'] ?? "Email atau password salah.",
+        type: QTToastType.error,
+      );
+    }
+  }
+
+  void _loginWithGoogle() async {
+    setState(() => isLoading = true);
+
+    final res = await AuthService().loginWithGoogle();
+
+    setState(() => isLoading = false);
+
+    if (res['success'] == true) {
+      // Register device for FCM Push Notifications
+      NotificationService().registerDevice();
+
+      final role = res['role'];
+      if (role == 'UMKM' || role == 'CLIENT') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const UmkmDashboardScreen(),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const TalentDashboardScreen(),
+          ),
+        );
+      }
+    } else {
+      QTToast.show(
+        context,
+        title: "Login Google Gagal 🔑",
+        message: res['message'] ?? "Gagal masuk menggunakan akun Google.",
         type: QTToastType.error,
       );
     }
