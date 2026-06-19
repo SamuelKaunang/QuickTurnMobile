@@ -1,4 +1,4 @@
-package com.example.quick_turn_mobile
+package com.quickturn.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -50,19 +50,18 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAGtORcfUb-kT6KMQ9lzZlknIweZEFuOQc',
-    appId: '1:266849869697:android:7e8ece5aa2fbe1f8131280',
-    messagingSenderId: '266849869697',
-    projectId: 'quickturn-1a2da',
-    storageBucket: 'quickturn-1a2da.firebasestorage.app',
+    apiKey: 'AIzaSyB1aVvlk9ylAWA43OIccWNfBIgLkELuSE4',
+    appId: '1:434207138294:android:3479b730e15c2ae94767d7',
+    messagingSenderId: '434207138294',
+    projectId: 'quickturnmobile-8f4a3',
+    storageBucket: 'quickturnmobile-8f4a3.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDpxCq6dksch0Gk3gHUzZXJTaCWz7HcvvY',
-    appId: '1:266849869697:ios:14f27599c6b3e3ef131280',
-    messagingSenderId: '266849869697',
-    projectId: 'quickturn-1a2da',
-    storageBucket: 'quickturn-1a2da.firebasestorage.app',
+    apiKey: 'AIzaSyAfdzPhAlUa8DrXhbhdzSmaFaRY4hACdxo',
+    appId: '1:434207138294:ios:0b0c967adbccec774767d7',
+    messagingSenderId: '434207138294',
+    projectId: 'quickturnmobile-8f4a3',
+    storageBucket: 'quickturnmobile-8f4a3.firebasestorage.app',
     iosBundleId: 'com.example.quickTurnMobile',
   );
 }

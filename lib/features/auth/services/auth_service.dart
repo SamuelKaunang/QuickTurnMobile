@@ -122,6 +122,91 @@ class AuthService {
     }
   }
 
+  /// Verify email using the 6-digit OTP code received during registration
+  Future<Map<String, dynamic>> verifyEmailOtp({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final response = await _client.dio.post(
+        '/api/auth/verify-email',
+        data: {
+          'email': email,
+          'code': code,
+        },
+      );
+
+      final responseData = response.data;
+      final nestedData = responseData is Map ? responseData['data'] : null;
+      final authData = nestedData is Map ? nestedData : null;
+      
+      final isSuccess = responseData['success'] == true && authData != null;
+
+      if (isSuccess) {
+        final String token = authData['accessToken'];
+        final String role = authData['role'] ?? 'MAHASISWA';
+        
+        // Save to secure storage
+        await _client.saveToken(token);
+        await _client.saveUserRole(role);
+        
+        // Register device token for push notifications
+        PushNotificationService().registerDeviceToken();
+        
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Email verified successfully!',
+          'role': role,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Gagal memverifikasi email',
+        };
+      }
+    } on DioException catch (e) {
+      final errorMsg = e.response?.data?['message'] ?? 'Terjadi kesalahan jaringan';
+      return {
+        'success': false,
+        'message': errorMsg,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Terjadi kesalahan: $e',
+      };
+    }
+  }
+
+  /// Resend verification OTP code
+  Future<Map<String, dynamic>> resendVerificationOtp({
+    required String email,
+  }) async {
+    try {
+      final response = await _client.dio.post(
+        '/api/auth/resend-verification-otp',
+        data: {
+          'email': email,
+        },
+      );
+      final responseData = response.data;
+      return {
+        'success': responseData['success'] == true,
+        'message': responseData['message'] ?? 'Kode verifikasi baru telah dikirim',
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data?['message'] ?? 'Gagal mengirim ulang kode verifikasi',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Terjadi kesalahan: $e',
+      };
+    }
+  }
+
   /// Request a password reset OTP code
   Future<Map<String, dynamic>> forgotPassword(String email) async {
     try {

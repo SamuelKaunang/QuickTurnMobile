@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import '../../core/widgets/qt_toast.dart';
+import '../dashboard/talent_dashboard_screen.dart';
+import '../dashboard/umkm_dashboard_screen.dart';
+import '../../core/services/notification_service.dart';
 import 'login_screen.dart';
 import 'services/auth_service.dart';
 
@@ -25,6 +28,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool obscureConfirm = true;
   bool agreeTerms = false;
   bool isLoading = false;
+
+  bool showOtpVerification = false;
+  final List<TextEditingController> otpControllers = List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> otpFocusNodes = List.generate(6, (_) => FocusNode());
+  bool isVerifyingOtp = false;
+  bool isResendingOtp = false;
 
   // Password strength
   int get passwordStrength {
@@ -181,8 +190,154 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(28, 36, 28, 40),
-                        child: Form(
-                          key: formKey,
+                        child: showOtpVerification
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Verifikasi Akun Anda",
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: QTColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    "Kami telah mengirimkan 6 digit kode verifikasi ke email ${emailController.text.trim()}. Silakan masukkan kode tersebut di bawah ini.",
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      color: QTColors.textSecondary,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 32),
+                                  // OTP input boxes
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: List.generate(6, (index) {
+                                      return SizedBox(
+                                        width: 44,
+                                        height: 56,
+                                        child: TextFormField(
+                                          controller: otpControllers[index],
+                                          focusNode: otpFocusNodes[index],
+                                          textAlign: TextAlign.center,
+                                          maxLength: 1,
+                                          keyboardType: TextInputType.number,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w800,
+                                            color: QTColors.textPrimary,
+                                          ),
+                                          decoration: InputDecoration(
+                                            counterText: "",
+                                            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                                            filled: true,
+                                            fillColor: QTColors.bgTertiary,
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(14),
+                                              borderSide: BorderSide.none,
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(14),
+                                              borderSide: const BorderSide(
+                                                color: QTColors.brandPrimary,
+                                                width: 2,
+                                              ),
+                                            ),
+                                          ),
+                                          onChanged: (value) {
+                                            if (value.isNotEmpty && index < 5) {
+                                              otpFocusNodes[index + 1].requestFocus();
+                                            }
+                                            if (value.isEmpty && index > 0) {
+                                              otpFocusNodes[index - 1].requestFocus();
+                                            }
+                                            if (value.isNotEmpty && index == 5) {
+                                              FocusScope.of(context).unfocus();
+                                            }
+                                          },
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                  const SizedBox(height: 32),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 56,
+                                    child: ElevatedButton(
+                                      onPressed: isVerifyingOtp ? null : _verifyOtp,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: QTColors.brandPrimary,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                      child: isVerifyingOtp
+                                          ? const SizedBox(
+                                              width: 24,
+                                              height: 24,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2.5,
+                                              ),
+                                            )
+                                          : Text(
+                                              "Verifikasi",
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Center(
+                                    child: TextButton(
+                                      onPressed: isResendingOtp ? null : _resendOtp,
+                                      child: isResendingOtp
+                                          ? const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: QTColors.brandPrimary,
+                                              ),
+                                            )
+                                          : Text(
+                                              "Kirim ulang kode",
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: QTColors.brandPrimary,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Center(
+                                    child: TextButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          showOtpVerification = false;
+                                        });
+                                      },
+                                      child: Text(
+                                        "Kembali ke Registrasi",
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: QTColors.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Form(
+                                key: formKey,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -511,17 +666,83 @@ class _RegisterScreenState extends State<RegisterScreen> {
     QTToast.show(
       context,
       title: isSuccess ? "Registrasi Berhasil! 🎉" : "Registrasi Gagal",
-      message: res['message'] ?? (isSuccess ? "Silakan masuk ke akun Anda." : "Terjadi kesalahan."),
+      message: res['message'] ?? (isSuccess ? "Kode verifikasi telah dikirim ke email Anda." : "Terjadi kesalahan."),
       type: isSuccess ? QTToastType.success : QTToastType.error,
     );
 
-    if (res['success'] == true) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const LoginScreen(),
-        ),
-      );
+    if (isSuccess) {
+      setState(() {
+        showOtpVerification = true;
+      });
     }
+  }
+
+  void _verifyOtp() async {
+    final email = emailController.text.trim();
+    final code = otpControllers.map((c) => c.text.trim()).join();
+    if (code.length < 6) {
+      QTToast.show(
+        context,
+        title: "Validasi Gagal",
+        message: "Masukkan 6 digit kode OTP.",
+        type: QTToastType.warning,
+      );
+      return;
+    }
+
+    setState(() => isVerifyingOtp = true);
+    final res = await AuthService().verifyEmailOtp(
+      email: email,
+      code: code,
+    );
+    setState(() => isVerifyingOtp = false);
+
+    final isSuccess = res['success'] == true;
+    QTToast.show(
+      context,
+      title: isSuccess ? "Email Terverifikasi! 🎉" : "Verifikasi Gagal",
+      message: res['message'] ?? (isSuccess ? "Registrasi Anda berhasil diselesaikan." : "Terjadi kesalahan."),
+      type: isSuccess ? QTToastType.success : QTToastType.error,
+    );
+
+    if (isSuccess) {
+      // Register device for FCM Push Notifications
+      NotificationService().registerDevice();
+
+      final role = res['role'];
+      if (!mounted) return;
+      if (role == 'UMKM' || role == 'CLIENT') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const UmkmDashboardScreen(),
+          ),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const TalentDashboardScreen(),
+          ),
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  void _resendOtp() async {
+    final email = emailController.text.trim();
+    setState(() => isResendingOtp = true);
+    final res = await AuthService().resendVerificationOtp(email: email);
+    setState(() => isResendingOtp = false);
+
+    final isSuccess = res['success'] == true;
+    QTToast.show(
+      context,
+      title: isSuccess ? "OTP Dikirim! ✉" : "Gagal Kirim OTP",
+      message: res['message'] ?? (isSuccess ? "Kode OTP baru berhasil dikirim." : "Terjadi kesalahan."),
+      type: isSuccess ? QTToastType.success : QTToastType.error,
+    );
   }
 }
