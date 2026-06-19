@@ -86,6 +86,18 @@ class PushNotificationService {
       },
     );
 
+    // Create the channel explicitly (Android 8+)
+    final androidImplementation = _localNotif.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await androidImplementation?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'quickturn_push_channel',
+        'QuickTurn Push Notifications',
+        description: 'Channel for QuickTurn push notifications',
+        importance: Importance.max,
+      ),
+    );
+
     // 3. Daftarkan handler background/terminated.
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
