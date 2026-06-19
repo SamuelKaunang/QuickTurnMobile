@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'core/theme/qt_theme.dart';
 import 'features/auth/landing_screen.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/services/notification_service.dart';
 
 // Entry point for the QuickTurn Mobile App
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // FCM Token Registration Service
+  await NotificationService().init();
+
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    // Jalankan inisialisasi push notification tanpa await agar tidak mem-block startup aplikasi
+    // Local Push Notification Service
     PushNotificationService().initialize().catchError((e) {
       debugPrint("Gagal inisialisasi push notification: $e");
     });

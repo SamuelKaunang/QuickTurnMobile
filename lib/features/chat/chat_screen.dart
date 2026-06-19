@@ -9,7 +9,9 @@ import '../auth/services/auth_service.dart';
 import 'services/chat_service.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final int? initialContactId;
+  const ChatScreen({super.key, this.initialContactId});
+
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
@@ -18,7 +20,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final msgCtrl = TextEditingController();
   final scrollCtrl = ScrollController();
   
-  int activeChat = 0;
+  int? activeChatIndex;
   File? selectedFile;
   bool isLoadingFile = false;
   
@@ -69,20 +71,26 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() {
       dynamicContacts = fetchedContacts.map((c) {
         return {
-          "id": c['id'],
+          "id": c['userId'], // Fixed: backend returns 'userId', not 'id'
           "name": c['name'] ?? 'No Name',
           "lastMessage": c['lastMessage'] ?? '',
           "unread": c['unreadCount'] ?? 0,
           "online": c['online'] ?? false,
-          "project": c['projectName'] ?? 'Project',
+          "project": c['projectTitle'] ?? 'Project', // Fixed: backend returns 'projectTitle', not 'projectName'
         };
       }).toList();
       isContactsLoading = false;
     });
 
-    if (dynamicContacts.isNotEmpty) {
-      activeChat = 0;
-      _loadChatHistory(dynamicContacts[activeChat]['id']);
+    // Check if initialContactId is specified and try to set it active
+    if (widget.initialContactId != null && activeChatIndex == null) {
+      final index = dynamicContacts.indexWhere((c) => c['id'] == widget.initialContactId);
+      if (index != -1) {
+        setState(() {
+          activeChatIndex = index;
+        });
+        _loadChatHistory(dynamicContacts[index]['id']);
+      }
     }
   }
 
@@ -105,28 +113,31 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _handleIncomingMessage(Map<String, dynamic> msg) {
-    if (dynamicContacts.isEmpty || activeChat >= dynamicContacts.length) {
+    if (dynamicContacts.isEmpty) {
       _loadContacts();
       return;
     }
 
-    final activeContactId = dynamicContacts[activeChat]['id'];
-    if (msg['senderId'] == activeContactId) {
-      setState(() {
-        dynamicMessages.add({
-          "mine": false,
-          "message": msg['content'] ?? '',
-          "time": "Now",
-          if (msg['attachmentUrl'] != null) "file": msg['attachmentUrl']
+    if (activeChatIndex != null && activeChatIndex! < dynamicContacts.length) {
+      final activeContactId = dynamicContacts[activeChatIndex!]['id'];
+      if (msg['senderId'] == activeContactId) {
+        setState(() {
+          dynamicMessages.add({
+            "mine": false,
+            "message": msg['content'] ?? '',
+            "time": "Now",
+            if (msg['attachmentUrl'] != null) "file": msg['attachmentUrl']
+          });
         });
-      });
-      
-      _scrollToBottom();
-      ChatService().markAsRead(activeContactId);
-    } else {
-      // Refresh contact list or update unread counts locally
-      _loadContacts();
+        
+        _scrollToBottom();
+        ChatService().markAsRead(activeContactId);
+        return;
+      }
     }
+
+    // Refresh contact list or update unread counts locally
+    _loadContacts();
   }
 
   void _scrollToBottom() {
@@ -142,7 +153,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   String _formatTime(dynamic timestamp) {
-    // Basic time formatter, assuming ISO String
     try {
       final dateTime = DateTime.parse(timestamp.toString()).toLocal();
       final hour = dateTime.hour.toString().padLeft(2, '0');
@@ -156,7 +166,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void sendMessage() async {
     if (msgCtrl.text.trim().isEmpty && selectedFile == null) return;
     
-    if (dynamicContacts.isEmpty || activeChat >= dynamicContacts.length) {
+    if (activeChatIndex == null || dynamicContacts.isEmpty || activeChatIndex! >= dynamicContacts.length) {
       QTToast.show(
         context,
         title: "Pilih Kontak",
@@ -166,7 +176,7 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
     
-    final recipientId = dynamicContacts[activeChat]['id'];
+    final recipientId = dynamicContacts[activeChatIndex!]['id'];
     if (recipientId == null || currentUserId == null) return;
 
     String? attachmentUrl;
@@ -289,71 +299,103 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
-    final c = dynamicContacts[activeChat];
+    if (activeChatIndex == null) {
+      return _buildChatListScreen();
+    } else {
+      return _buildChatRoomScreen();
+    }
+  }
+
+  Widget _buildChatListScreen() {
     return Scaffold(
       backgroundColor: QTColors.bgPrimary,
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Mobile contacts bar
-            SizedBox(
-              height: 90,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.all(14),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              child: Text(
+                "Messages",
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: QTColors.textPrimary,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Text(
+                "Hubungi klien atau talent untuk mendiskusikan detail proyek Anda.",
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  color: QTColors.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 itemCount: dynamicContacts.length,
-                itemBuilder: (_, i) {
-                  final ct = dynamicContacts[i];
-                  final isSelected = activeChat == i;
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final ct = dynamicContacts[index];
+                  final unread = ct["unread"] as int;
+                  final online = ct["online"] == true;
+                  final initials = (ct["name"] as String).isNotEmpty
+                      ? (ct["name"] as String)[0].toUpperCase()
+                      : "?";
+
                   return GestureDetector(
                     onTap: () {
                       setState(() {
-                        activeChat = i;
-                        dynamicContacts[i]["unread"] = 0;
+                        activeChatIndex = index;
+                        ct["unread"] = 0;
                       });
                       _loadChatHistory(ct["id"]);
                     },
                     child: Container(
-                      width: 68,
-                      margin: const EdgeInsets.only(right: 10),
-                      child: Column(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Row(
                         children: [
+                          // Avatar with online indicator
                           Stack(
                             children: [
-                              CircleAvatar(
-                                radius: 24,
-                                backgroundColor: isSelected
-                                    ? QTColors.brandPrimary
-                                    : QTColors.slate300,
-                                child: Text(
-                                  (ct["name"] as String)[0].toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
+                              Container(
+                                width: 52,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: const LinearGradient(
+                                    colors: [QTColors.brandPrimary, QTColors.brandDark],
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    initials,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
-                              if ((ct["unread"] as int) > 0)
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: QTColors.accentBeginner,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Text(
-                                      "${ct["unread"]}",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              if (ct["online"] == true)
+                              if (online)
                                 Positioned(
                                   right: 0,
                                   bottom: 0,
@@ -372,19 +414,76 @@ class _ChatScreenState extends State<ChatScreen> {
                                 ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            ct["name"] as String,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.normal,
-                              color: isSelected
-                                  ? QTColors.brandPrimary
-                                  : QTColors.textPrimary,
+                          const SizedBox(width: 16),
+                          // Text Details
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  ct["name"] as String,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: QTColors.textPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: QTColors.bgTertiary,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    ct["project"] as String,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: QTColors.textSecondary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Badges (Unread) & Chevron
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              if (unread > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: QTColors.brandPrimary,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    "$unread",
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                )
+                              else
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: QTColors.textMuted,
+                                ),
+                            ],
                           ),
                         ],
                       ),
@@ -393,76 +492,111 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
             ),
-            // Chat header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  bottom: BorderSide(color: QTColors.slate200),
-                ),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: QTColors.brandPrimary,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatRoomScreen() {
+    final ct = dynamicContacts[activeChatIndex!];
+    final online = ct["online"] == true;
+    final initials = (ct["name"] as String).isNotEmpty
+        ? (ct["name"] as String)[0].toUpperCase()
+        : "?";
+
+    return Scaffold(
+      backgroundColor: QTColors.bgPrimary,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leadingWidth: 40,
+        leading: IconButton(
+          onPressed: () {
+            setState(() {
+              activeChatIndex = null;
+            });
+            _loadContacts(); // Refresh unread count list
+          },
+          icon: const Icon(Icons.arrow_back, color: QTColors.textPrimary),
+        ),
+        title: Row(
+          children: [
+            Stack(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(
+                      colors: [QTColors.brandPrimary, QTColors.brandDark],
+                    ),
+                  ),
+                  child: Center(
                     child: Text(
-                      (c["name"] as String)[0].toUpperCase(),
-                      style: const TextStyle(
+                      initials,
+                      style: GoogleFonts.plusJakartaSans(
                         color: Colors.white,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          c["name"] as String,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
+                ),
+                if (online)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: QTColors.accentBeginner,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 1.5,
                         ),
-                        Text(
-                          c["project"] as String,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            color: QTColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: c["online"] == true
-                          ? QTColors.accentBeginner.withOpacity(0.1)
-                          : QTColors.slate200,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      c["online"] == true ? "Online" : "Offline",
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: c["online"] == true
-                            ? QTColors.accentBeginner
-                            : QTColors.textMuted,
                       ),
                     ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ct["name"] as String,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: QTColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    ct["project"] as String,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      color: QTColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            // Messages
+          ],
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Messages List
             Expanded(
               child: ListView.builder(
                 controller: scrollCtrl,
@@ -542,7 +676,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
             ),
-            // File preview
+            // File preview (if selected)
             if (selectedFile != null)
               Container(
                 padding: const EdgeInsets.all(12),

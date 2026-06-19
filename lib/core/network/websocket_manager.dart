@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dio_client.dart';
 
 /// Manages WebSocket STOMP connections for real-time chat functionality.
 /// Uses raw WebSocket endpoint (/ws-raw) compatible with non-browser clients.
@@ -25,11 +26,22 @@ class WebSocketManager {
     if (isConnected) return;
 
     final String? token = await _storage.read(key: 'jwt_token');
+    
+    // Resolve dynamic WebSocket URL
+    final String baseUrl = DioClient.baseUrl;
+    final String wsUrl;
+    if (baseUrl.startsWith('https://')) {
+      wsUrl = baseUrl.replaceFirst('https://', 'wss://') + '/ws-raw';
+    } else if (baseUrl.startsWith('http://')) {
+      wsUrl = baseUrl.replaceFirst('http://', 'ws://') + '/ws-raw';
+    } else {
+      wsUrl = baseUrl + '/ws-raw';
+    }
 
     stompClient = StompClient(
       config: StompConfig(
         // Raw WebSocket endpoint for mobile (non-SockJS)
-        url: 'wss://quickturn-api-bxcqfshtdtfjhaav.indonesiacentral-01.azurewebsites.net/ws-raw',
+        url: wsUrl,
         onConnect: (StompFrame frame) {
           print('WebSocket connected successfully.');
 
