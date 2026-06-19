@@ -20,6 +20,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final passwordController = TextEditingController();
 
   bool obscurePassword = true;
+  bool obscureNewPassword = true;
+  bool obscureConfirmNewPassword = true;
   bool isLoading = false;
   bool showForgotPassword = false;
   String? resetToken;
@@ -598,11 +600,18 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 8),
         TextFormField(
           controller: newPasswordController,
-          obscureText: true,
-          decoration: const InputDecoration(
+          obscureText: obscureNewPassword,
+          decoration: InputDecoration(
             hintText: "Masukkan password baru",
             prefixIcon:
-                Icon(Icons.lock_outline, color: QTColors.textMuted),
+                const Icon(Icons.lock_outline, color: QTColors.textMuted),
+            suffixIcon: IconButton(
+              icon: Icon(
+                obscureNewPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: QTColors.textMuted,
+              ),
+              onPressed: () => setState(() => obscureNewPassword = !obscureNewPassword),
+            ),
           ),
         ),
         const SizedBox(height: 20),
@@ -610,11 +619,18 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 8),
         TextFormField(
           controller: confirmNewPasswordController,
-          obscureText: true,
-          decoration: const InputDecoration(
+          obscureText: obscureConfirmNewPassword,
+          decoration: InputDecoration(
             hintText: "Ulangi password baru",
             prefixIcon:
-                Icon(Icons.lock_outline, color: QTColors.textMuted),
+                const Icon(Icons.lock_outline, color: QTColors.textMuted),
+            suffixIcon: IconButton(
+              icon: Icon(
+                obscureConfirmNewPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: QTColors.textMuted,
+              ),
+              onPressed: () => setState(() => obscureConfirmNewPassword = !obscureConfirmNewPassword),
+            ),
           ),
         ),
         const SizedBox(height: 32),

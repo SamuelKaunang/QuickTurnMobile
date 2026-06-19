@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/qt_colors.dart';
 import '../../core/widgets/qt_toast.dart';
 import '../../core/network/websocket_manager.dart';
+import '../../core/network/dio_client.dart';
 import '../auth/services/auth_service.dart';
 import 'services/chat_service.dart';
 
@@ -160,6 +161,58 @@ class _ChatScreenState extends State<ChatScreen> {
       return '$hour:$minute';
     } catch (_) {
       return 'Now';
+    }
+  }
+
+  Widget _buildAttachment(String path) {
+    final bool isNetwork = path.startsWith('http') || path.startsWith('/api/') || !File(path).existsSync();
+    final String finalUrl = isNetwork 
+        ? (path.startsWith('http') ? path : '${DioClient.baseUrl}${path.startsWith('/') ? '' : '/'}$path')
+        : path;
+
+    if (isNetwork) {
+      return Image.network(
+        finalUrl,
+        width: 200,
+        height: 200,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 200,
+            height: 100,
+            color: Colors.grey[200],
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image, color: Colors.grey, size: 32),
+                SizedBox(height: 4),
+                Text(
+                  "Gagal memuat media",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: 200,
+            height: 200,
+            color: Colors.grey[100],
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+      );
+    } else {
+      return Image.file(
+        File(path),
+        width: 200,
+        height: 200,
+        fit: BoxFit.cover,
+      );
     }
   }
 
@@ -605,6 +658,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 itemBuilder: (_, i) {
                   final msg = dynamicMessages[i];
                   final mine = msg["mine"] as bool;
+                  final hasFile = msg["file"] != null;
+                  final messageText = (msg["message"] ?? "") as String;
+                  
                   return Align(
                     alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
                     child: Container(
@@ -614,30 +670,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         crossAxisAlignment:
                             mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                         children: [
-                          if (msg["file"] != null)
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
-                                child: msg["file"].startsWith('http')
-                                    ? Image.network(
-                                        msg["file"],
-                                        width: 200,
-                                        height: 200,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(Icons.broken_image),
-                                      )
-                                    : Image.file(
-                                        File(msg["file"]),
-                                        width: 200,
-                                        height: 200,
-                                        fit: BoxFit.cover,
-                                      ),
-                              ),
-                            ),
                           Container(
-                            padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
                               color: mine ? QTColors.brandPrimary : Colors.white,
                               borderRadius: BorderRadius.only(
@@ -653,11 +686,30 @@ class _ChatScreenState extends State<ChatScreen> {
                                 )
                               ],
                             ),
-                            child: Text(
-                              msg["message"] as String,
-                              style: GoogleFonts.plusJakartaSans(
-                                color: mine ? Colors.white : QTColors.textPrimary,
-                                height: 1.4,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(18),
+                                topRight: const Radius.circular(18),
+                                bottomLeft: Radius.circular(mine ? 18 : 4),
+                                bottomRight: Radius.circular(mine ? 4 : 18),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (hasFile)
+                                    _buildAttachment(msg["file"] as String),
+                                  if (messageText.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Text(
+                                        messageText,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: mine ? Colors.white : QTColors.textPrimary,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           ),
