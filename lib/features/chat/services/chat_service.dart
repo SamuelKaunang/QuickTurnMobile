@@ -90,8 +90,8 @@ class ChatService {
       if (responseData['success'] == true && responseData['data'] != null) {
         return {
           'success': true,
-          'url': responseData['data']['url'],
-          'fileName': responseData['data']['fileName'],
+          'url': responseData['data']['attachmentUrl'],
+          'fileName': responseData['data']['originalFilename'],
           'fileSize': responseData['data']['fileSize'],
         };
       }

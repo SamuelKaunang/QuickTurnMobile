@@ -155,7 +155,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String _formatTime(dynamic timestamp) {
     try {
-      final dateTime = DateTime.parse(timestamp.toString()).toLocal();
+      String timeStr = timestamp.toString();
+      // Backend uses LocalDateTime (timezone-naive, stored in UTC).
+      // Append 'Z' so Dart parses it as UTC, then .toLocal() converts to device timezone.
+      if (!timeStr.endsWith('Z') && !timeStr.contains('+') && !RegExp(r'-\d{2}:\d{2}$').hasMatch(timeStr)) {
+        timeStr += 'Z';
+      }
+      final dateTime = DateTime.parse(timeStr).toLocal();
       final hour = dateTime.hour.toString().padLeft(2, '0');
       final minute = dateTime.minute.toString().padLeft(2, '0');
       return '$hour:$minute';
@@ -697,7 +703,19 @@ class _ChatScreenState extends State<ChatScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   if (hasFile)
-                                    _buildAttachment(msg["file"] as String),
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => FullScreenImageViewer(
+                                              imagePath: msg["file"] as String,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: _buildAttachment(msg["file"] as String),
+                                    ),
                                   if (messageText.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.all(12),
@@ -828,6 +846,70 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-screen image viewer with pinch-to-zoom and pan support.
+class FullScreenImageViewer extends StatelessWidget {
+  final String imagePath;
+  const FullScreenImageViewer({super.key, required this.imagePath});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isNetwork = imagePath.startsWith('http') ||
+        imagePath.startsWith('/api/') ||
+        !File(imagePath).existsSync();
+    final String finalUrl = isNetwork
+        ? (imagePath.startsWith('http')
+            ? imagePath
+            : '${DioClient.baseUrl}${imagePath.startsWith('/') ? '' : '/'}$imagePath')
+        : imagePath;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          'Preview',
+          style: GoogleFonts.plusJakartaSans(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          clipBehavior: Clip.none,
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: isNetwork
+              ? Image.network(
+                  finalUrl,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.broken_image, color: Colors.white54, size: 64),
+                      SizedBox(height: 12),
+                      Text(
+                        'Gagal memuat gambar',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    ],
+                  ),
+                  loadingBuilder: (_, child, progress) {
+                    if (progress == null) return child;
+                    return const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    );
+                  },
+                )
+              : Image.file(File(imagePath), fit: BoxFit.contain),
         ),
       ),
     );
